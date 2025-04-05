@@ -14,11 +14,19 @@
             <div class="recent-tracks" v-if="recentTracks.length">
                 <h3>RECENT TRACKS</h3>
                 <div v-for="(recentTrack, index) in recentTracks" :key="index" class="recent-track"
-                    @click="playRecentTrack(recentTrack)">
-                    <img :src="recentTrack.album.images[2].url" class="recent-art" />
+                    :class="{ loading: recentTrack.loading }" @click="playRecentTrack(recentTrack)">
+                    <div class="recent-art-wrapper">
+                        <img v-if="recentTrack.album?.images?.length >= 3" :src="recentTrack.album.images[2].url"
+                            class="recent-art" />
+                        <div v-else class="recent-art-placeholder">
+                            <i class="fas fa-music"></i>
+                        </div>
+                    </div>
                     <div class="recent-info">
-                        <div class="recent-title">{{ recentTrack.name }}</div>
-                        <div class="recent-artist">{{ recentTrack.artists[0].name }}</div>
+                        <div class="recent-title">{{ recentTrack.name || 'Unknown Track' }}</div>
+                        <div class="recent-artist">
+                            {{ recentTrack.artists?.[0]?.name || 'Unknown Artist' }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -31,7 +39,7 @@
                 <div class="search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input v-model="trackId" class="search-input" placeholder="Enter Spotify Track ID or Search..." />
-                    <button class="search-button" @click="fetchTrack">
+                    <button class="search-button" @click="fetchTrack" :disabled="audioLoading">
                         {{ track ? 'Update' : 'Search' }}
                     </button>
                 </div>
@@ -44,12 +52,16 @@
                     <div class="track-info">
                         <!-- Album Art -->
                         <div class="album-art-container" :class="{ rotating: isPlaying }">
-                            <img :src="track.album.images[0].url" :alt="track.name" class="album-art" />
+                            <img v-if="track.album?.images?.length" :src="track.album.images[0].url" :alt="track.name"
+                                class="album-art" />
+                            <div v-else class="album-art-placeholder">
+                                <i class="fas fa-music"></i>
+                            </div>
                         </div>
 
                         <!-- Track Title and Artist -->
                         <h1 class="track-title">{{ track.name }}</h1>
-                        <p class="artist">{{track.artists.map(a => a.name).join(', ')}}</p>
+                        <p class="artist">{{track.artists?.map(a => a.name).join(', ') || 'Unknown Artist'}}</p>
 
                         <!-- Valence and Mood -->
                         <p class="valence-info">Valence: {{ valence.toFixed(2) }}</p>
@@ -61,7 +73,8 @@
                                 <i class="fas fa-step-backward"></i>
                             </button>
                             <button class="control-button play" @click="togglePlay"
-                                :style="{ background: `linear-gradient(135deg, ${moods[selectedMood][0]}, ${moods[selectedMood][1]})` }">
+                                :style="{ background: `linear-gradient(135deg, ${moods[selectedMood][0]}, ${moods[selectedMood][1]})` }"
+                                :disabled="audioLoading">
                                 <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
                             </button>
                             <button class="control-button next" @click="nextTrack">
@@ -80,7 +93,7 @@
                             </div>
                         </div>
 
-                        <!-- Audio Loading and Error States -->
+                        <!-- Loading and Error States -->
                         <div v-if="audioLoading" class="audio-state">
                             <i class="fas fa-spinner fa-spin"></i> Loading audio...
                         </div>
@@ -109,10 +122,11 @@ import axios from 'axios';
 export default {
     data() {
         return {
-            trackId: '77oU2rjC5XbjQfNe3bD6so',
+            trackId: '',
             track: null,
-            valence: null, // Default valence
-            audioElement: null,
+            valence: 0.5,
+            player: null,
+            deviceId: null,
             isPlaying: false,
             progressPercentage: 0,
             currentTime: 0,
@@ -132,21 +146,15 @@ export default {
     },
     computed: {
         backgroundStyle() {
-            return {
+            return this.track ? {
                 background: `linear-gradient(135deg, ${this.moods[this.selectedMood][0]}, ${this.moods[this.selectedMood][1]})`
-            };
+            } : {};
         },
         currentTimeFormatted() {
             return this.formatTime(this.currentTime);
         },
         durationFormatted() {
-            return this.formatTime(this.audioElement?.duration || 0);
-        },
-        moodColor() {
-            return this.moods[this.selectedMood][0]; // Use the first color of the mood gradient
-        },
-        darkerMoodColor() {
-            return this.moods[this.selectedMood][1]; // Use the second color of the mood gradient for a darker shade
+            return this.formatTime(this.track?.duration_ms / 1000 || 0);
         }
     },
     methods: {
@@ -156,96 +164,103 @@ export default {
                 if (response.data.token) {
                     callback(response.data.token);
                 } else {
-                    throw new Error(response.data.error || 'Invalid token received');
+                    throw new Error(response.data.error || 'Invalid token');
                 }
             } catch (error) {
-                console.error('Error fetching Spotify token:', error);
-                this.audioError = 'Failed to fetch Spotify token. Ensure you are logged in and authorized.';
+                console.error('Token error:', error);
+                this.audioError = 'Failed to get Spotify token';
             }
         },
-        async fetchSpotifyData() {
-            try {
-                const response = await axios.get('http://127.0.0.1:8000/spotify/proxy', {
-                    params: { type: 'dealer', type: 'spclient' },
-                });
-                console.log('Spotify API response:', response.data);
-            } catch (error) {
-                console.error('Error fetching Spotify data:', error);
-            }
-        },
-        async authenticate() {
-            try {
-                const response = await axios.get('http://127.0.0.1:8000/spotify/authorize');
-                if (response.data.authUrl) {
-                    window.location.href = response.data.authUrl;
-                }
-            } catch (error) {
-                console.error('Authentication failed:', error);
-                this.audioError = 'Failed to authenticate with Spotify';
-            }
-        },
+
         formatTime(seconds) {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = Math.floor(seconds % 60);
-            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
         },
+
         async fetchTrack() {
             try {
                 this.audioError = null;
+                this.audioLoading = true;
+
+                // Get recommendation
                 const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
+                if (!recResponse.data?.recommendation) {
+                    throw new Error('No track recommendation received');
+                }
+                this.trackId = recResponse.data.recommendation;
 
-                console.log('recResponse:', recResponse);
-                const trackId = recResponse.data.recommendation; // Extract trackId
-                console.log('Extracted trackId:', trackId);
-
-                this.trackId = trackId; // Assign to this.trackId
-
-                const response = await axios.get('http://127.0.0.1:8000/spotify/track', {
+                // Get track details
+                const trackResponse = await axios.get('http://127.0.0.1:8000/spotify/track', {
                     params: { track_id: this.trackId }
                 });
-                console.log('Track response:', response.data);
 
-                // Validate and assign track data
-                if (response.data && response.data.album && response.data.artists) {
-                    this.track = response.data;
-                    this.valence = response.data.valence ?? 0.5; // Default valence to 0.5 if undefined
-                    console.log('Valence from response:', this.valence);
-                    this.addToRecentTracks(this.track);
-                    await this.setupAudio();
-                } else {
-                    throw new Error('Incomplete track data received');
+                if (!trackResponse.data?.id || !trackResponse.data?.artists) {
+                    throw new Error('Invalid track data structure');
                 }
+
+                // Process track data
+                this.track = {
+                    ...trackResponse.data,
+                    album: {
+                        ...trackResponse.data.album,
+                        images: trackResponse.data.album?.images || []
+                    },
+                    artists: trackResponse.data.artists || []
+                };
+
+                this.valence = trackResponse.data.valence ?? 0.5;
+                this.updateMood();
+                this.addToRecentTracks(this.track);
+                await this.setupAudio();
+
             } catch (error) {
-                console.error('Error fetching track or valence:', error);
-                this.audioError = 'Failed to fetch track data. Please try again.';
+                console.error('Fetch error:', error);
+                this.audioError = error.message || 'Failed to load track';
+            } finally {
+                this.audioLoading = false;
             }
         },
+
         updateMood() {
-            if (this.valence < 0.3) {
-                this.selectedMood = 'Melancholy';
-            } else if (this.valence < 0.5) {
-                this.selectedMood = 'Calm';
-            } else if (this.valence < 0.7) {
-                this.selectedMood = 'Chill';
-            } else if (this.valence < 0.9) {
-                this.selectedMood = 'Happy';
-            } else {
-                this.selectedMood = 'Energetic';
-            }
+            if (this.valence < 0.3) this.selectedMood = 'Melancholy';
+            else if (this.valence < 0.5) this.selectedMood = 'Calm';
+            else if (this.valence < 0.7) this.selectedMood = 'Chill';
+            else if (this.valence < 0.9) this.selectedMood = 'Happy';
+            else this.selectedMood = 'Energetic';
         },
+
         addToRecentTracks(track) {
-            if (!this.recentTracks.some(t => t.id === track.id)) {
-                this.recentTracks.unshift(track);
-                if (this.recentTracks.length > 5) {
-                    this.recentTracks.pop();
+            if (track?.id && track?.name) {
+                const exists = this.recentTracks.some(t => t.id === track.id);
+                if (!exists) {
+                    this.recentTracks.unshift({
+                        id: track.id,
+                        name: track.name,
+                        artists: track.artists || [],
+                        album: {
+                            images: track.album?.images || []
+                        }
+                    });
+                    if (this.recentTracks.length > 5) this.recentTracks.pop();
                 }
             }
         },
-        playRecentTrack(track) {
-            this.trackId = track.id;
-            this.fetchTrack();
+
+        async playRecentTrack(track) {
+            if (track.loading) return;
+            try {
+                track.loading = true;
+                this.trackId = track.id;
+                await this.fetchTrack();
+            } finally {
+                track.loading = false;
+            }
         },
+
         async initializeSpotifyPlayer() {
+            if (this.player) return;
+
             const script = document.createElement('script');
             script.src = 'https://sdk.scdn.co/spotify-player.js';
             script.async = true;
@@ -254,78 +269,73 @@ export default {
             return new Promise((resolve) => {
                 window.onSpotifyWebPlaybackSDKReady = () => {
                     this.player = new window.Spotify.Player({
-                        name: 'SoundScape Web Player',
-                        getOAuthToken: cb => {
-                            this.getOAuthToken(cb);
-                        }
+                        name: 'SoundScape Player',
+                        getOAuthToken: cb => this.getOAuthToken(cb),
+                        volume: 0.5
+                    });
+
+                    // Error handling
+                    this.player.addListener('initialization_error', ({ message }) => {
+                        this.audioError = `Player error: ${message}`;
+                    });
+                    this.player.addListener('authentication_error', ({ message }) => {
+                        this.audioError = 'Auth failed - please refresh';
+                    });
+                    this.player.addListener('account_error', ({ message }) => {
+                        this.audioError = 'Premium account required';
                     });
 
                     this.player.connect().then(success => {
                         if (success) {
-                            console.log('Successfully connected to Spotify');
+                            console.log('Spotify player connected');
+                            resolve();
                         }
                     });
 
                     this.player.addListener('ready', ({ device_id }) => {
                         this.deviceId = device_id;
-                        resolve();
                     });
 
                     this.player.addListener('player_state_changed', state => {
                         if (state) {
                             this.isPlaying = !state.paused;
-                            this.currentTime = state.position;
-                            this.updateProgress();
+                            this.currentTime = state.position / 1000;
+                            this.progressPercentage = (state.position / state.duration) * 100;
                         }
-                    });
-
-                    this.player.addListener('not_ready', ({ device_id }) => {
-                        console.log('Device ID has gone offline', device_id);
                     });
                 };
             });
         },
+
         async setupAudio() {
             try {
-                this.audioLoading = true;
-                this.audioError = null;
-
-                // Initialize Spotify Web Playback SDK if not already done
                 if (!this.player) {
                     await this.initializeSpotifyPlayer();
                 }
 
-                const response = await axios.get(`http://127.0.0.1:8000/spotify/audio`, {
-                    params: {
-                        track_id: this.track.id
-                    }
+                await this.player._options.getOAuthToken(async accessToken => {
+                    const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            uris: [`spotify:track:${this.trackId}`]
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Playback start failed');
+                    this.isPlaying = true;
                 });
 
-                console.log('Audio setup response:', response.data);
-
-                if (response.data.success) {
-                    // Store the device ID for future use
-                    this.deviceId = response.data.deviceId;
-
-                    console.log('response.data.valence:', response.data.valence);
-                    this.valence = response.data.valence || 0.8;
-                    // Update mood based on the new valence
-                    this.updateMood();
-
-                    // Start playback
-                    await this.player.resume();
-                    this.isPlaying = true;
-                } else {
-                    throw new Error(response.data.error || 'Failed to initialize playback');
-                }
             } catch (error) {
-                console.error('Audio setup error:', error);
-                this.audioError = 'Error setting up audio. Make sure you\'re logged into Spotify Premium and have an active device';
+                console.error('Playback error:', error);
+                this.audioError = 'Playback failed - check Premium status';
                 this.isPlaying = false;
-            } finally {
-                this.audioLoading = false;
             }
         },
+
         async togglePlay() {
             if (!this.track || this.audioLoading) return;
 
@@ -335,44 +345,38 @@ export default {
                 } else {
                     await this.player.resume();
                 }
-            } catch (e) {
-                console.error('Playback error:', e);
-                this.audioError = 'Playback failed';
-                this.isPlaying = false;
+                this.isPlaying = !this.isPlaying;
+            } catch (error) {
+                console.error('Playback toggle error:', error);
+                this.audioError = 'Playback control failed';
             }
         },
+
         prevTrack() {
-            if (this.audioElement) {
-                this.audioElement.currentTime = 0;
-            }
+            this.player.previousTrack();
         },
+
         nextTrack() {
-            if (this.recentTracks.length > 0) {
-                this.playRecentTrack(this.recentTracks[0]);
-            }
+            this.player.nextTrack();
         },
-        updateProgress() {
-            if (this.player && this.track) {
-                this.player.getCurrentState().then(state => {
-                    if (state) {
-                        this.currentTime = state.position / 1000;
-                        this.progressPercentage = (state.position / state.duration) * 100;
-                    }
-                });
-            }
-        },
+
         seekAudio(event) {
             if (this.player && this.track) {
                 const rect = event.currentTarget.getBoundingClientRect();
                 const seekPosition = (event.clientX - rect.left) / rect.width;
-                const seekTime = seekPosition * this.audioElement.duration;
+                const seekTime = seekPosition * (this.track.duration_ms / 1000);
                 this.player.seek(seekTime * 1000);
             }
         }
     },
     mounted() {
         this.initializeSpotifyPlayer();
-        setInterval(this.updateProgress, 1000); // Update progress every second
+        setInterval(() => {
+            if (this.isPlaying) {
+                this.currentTime += 1;
+                this.progressPercentage = (this.currentTime / (this.track?.duration_ms / 1000)) * 100;
+            }
+        }, 1000);
     },
     beforeUnmount() {
         if (this.player) {
@@ -833,5 +837,46 @@ body {
 .auth-button:hover {
     background-color: #1ed760;
     transform: scale(1.02);
+}
+
+.recent-art-placeholder,
+.album-art-placeholder {
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.recent-art-placeholder {
+    width: 50px;
+    height: 50px;
+}
+
+.album-art-placeholder {
+    width: 200px;
+    height: 200px;
+}
+
+.recent-art-placeholder .fa-music,
+.album-art-placeholder .fa-music {
+    color: #666;
+}
+
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.audio-state {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-state.error {
+    background: rgba(255, 0, 0, 0.1);
+    color: #cc0000;
 }
 </style>
