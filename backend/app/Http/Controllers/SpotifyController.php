@@ -173,97 +173,74 @@ class SpotifyController extends Controller
     public function getReccomendationId()
     {
         try {
-            // Get new token
             $tokenData = $this->getAccessToken();
-
-            if (!isset($tokenData['access_token'])) {
-                throw new \Exception('Invalid access token');
-            }
-
             $accessToken = $tokenData['access_token'];
 
-            // get valence
-            $valence = Cache::get('valence', 0.5);
+            // Get user's top 5 artists
+            $topArtists = $this->getTop5Artists()['items'] ?? [];
+            $artistIds = collect($topArtists)->pluck('id')->take(5)->toArray();
 
-            if ($valence !== null) {
-                Log::info('Valence retrieved from session', ['valence' => $valence]); // Log the valence
+            // Get top 5 tracks from each artist
+            $allTracks = collect($artistIds)
+                ->flatMap(function ($artistId) use ($accessToken) {
+                    return $this->getArtistTopTracks($artistId, $accessToken);
+                })
+                ->filter()
+                ->shuffle()
+                ->toArray();
+
+            if (empty($allTracks)) {
+                throw new \Exception('No tracks found from top artists');
             }
 
-            // get tempo
-            $tempo = Cache::get('tempo', 90);
+            // Select random track from the pool
+            $randomTrack = $allTracks[array_rand($allTracks)];
 
-            if ($tempo !== null) {
-                Log::info('Tempo retrieved from session', ['tempo' => $tempo]); // Log the valence
-            }
-
-
-            // get top 5 artist data
-            $artistData = $this->getTop5Artists();
-
-            log::debug('Artists data', ['artistData' => $artistData]);
-            $artistIds = [];
-
-            foreach ($artistData['items'] as $item) {
-
-
-                $artistIds[] = $item['id'];
-            }
-            $artistStringIds = implode(',', $artistIds);
-
-            log::debug('Artist IDs', ['artistStringIds' => $artistStringIds]);
-            if (empty($artistStringIds)) {
-                throw new \Exception('No artists found');
-            }
-
-            // get top 5 track data
-            $tracksData = $this->getTop5Tracks();
-
-            log::debug('Tracks data', ['tracksData' => $tracksData]);
-            if (empty($tracksData['items'])) {
-                throw new \Exception('No tracks found');
-            }
-            if (empty($artistData['items'])) {
-                throw new \Exception('No artists found');
-            }
-
-
-            $tracksIds = [];
-            foreach ($tracksData['items'] as $item) {
-                $tracksIds[] = $item['id'];
-            }
-            $trackStringIds = implode(',', $tracksIds);
-
-
-            $url = "https://api.spotify.com/v1/recommendations?limit=1&seed_artists={$artistStringIds}&target_tempo={$tempo}&target_valence={$valence}";
-
-            log::debug('Recommendation URL', ['url' => $url]);
-
-            $recResponse = Http::withToken($accessToken)->get($url);
-
-            if (!$recResponse->successful()) {
-                Log::error('Recommendation API error', [
-                    'status' => $recResponse->status(),
-                    'body' => $recResponse->body(),
-                    'url' => $url
-                ]);
-                throw new \Exception('Failed to fetch recommendations');
-            }
-
-            $data = $recResponse->json();
-
-            if (empty($data['tracks'])) {
-                Log::error('No tracks found in recommendation response', ['response' => $data]);
-                throw new \Exception('No tracks found in recommendation response');
-            }
-
-            $trackIds = collect($data['tracks'])->pluck('id');
-
-            return $trackIds->all();
+            return response()->json([
+                'recommendation' => $randomTrack['id'],
+                'track_name' => $randomTrack['name'],
+                'artist' => $randomTrack['artists'][0]['name']
+            ]);
         } catch (\Exception $e) {
             Log::error('Recommendation error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    private function getArtistTopTracks($artistId, $accessToken)
+    {
+        $response = Http::withToken($accessToken)
+            ->get("https://api.spotify.com/v1/artists/{$artistId}/top-tracks", [
+                'market' => 'from_token'
+            ]);
+
+        if (!$response->successful()) {
+            return [];
+        }
+
+        $tracks = $response->json()['tracks'] ?? [];
+
+        // Return only first 5 tracks with essential info
+        return array_map(function ($track) {
+            return [
+                'id' => $track['id'],
+                'name' => $track['name'],
+                'artists' => $track['artists']
+            ];
+        }, array_slice($tracks, 0, 5));
+    }
+
+    // Helper methods using active endpoints
+    private function getRelatedArtists($artistId, $accessToken)
+    {
+        $response = Http::withToken($accessToken)
+            ->get("https://api.spotify.com/v1/artists/{$artistId}/related-artists");
+
+        return $response->successful()
+            ? collect($response->json()['artists'])->pluck('id')->toArray()
+            : [];
+    }
+
 
     public function getTrack(Request $request)
     {

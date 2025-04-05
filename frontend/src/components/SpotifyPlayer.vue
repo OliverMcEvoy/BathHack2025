@@ -192,26 +192,32 @@ export default {
         async fetchTrack() {
             try {
                 this.audioError = null;
-                // INSTEAD WE WANT TO CALL GET RECOMMENDATIONID
-                // set that id as trackid then continue
-                const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec', {});
+                const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
 
                 console.log('recResponse:', recResponse);
-                this.trackId = recResponse.data
+                const trackId = recResponse.data.recommendation; // Extract trackId
+                console.log('Extracted trackId:', trackId);
+
+                this.trackId = trackId; // Assign to this.trackId
 
                 const response = await axios.get('http://127.0.0.1:8000/spotify/track', {
                     params: { track_id: this.trackId }
                 });
-                this.track = response.data;
-                console.log('repsponse:', response);
-                // Update valence from the response
-                console.log('Valence from response:', response.data.valence);
-                this.addToRecentTracks(this.track);
-                await this.setupAudio();
+                console.log('Track response:', response.data);
 
+                // Validate and assign track data
+                if (response.data && response.data.album && response.data.artists) {
+                    this.track = response.data;
+                    this.valence = response.data.valence ?? 0.5; // Default valence to 0.5 if undefined
+                    console.log('Valence from response:', this.valence);
+                    this.addToRecentTracks(this.track);
+                    await this.setupAudio();
+                } else {
+                    throw new Error('Incomplete track data received');
+                }
             } catch (error) {
                 console.error('Error fetching track or valence:', error);
-                this.audioError = 'Failed to load track information';
+                this.audioError = 'Failed to fetch track data. Please try again.';
             }
         },
         updateMood() {
