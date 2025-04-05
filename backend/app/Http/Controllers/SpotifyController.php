@@ -190,7 +190,7 @@ class SpotifyController extends Controller
             }
 
             // get tempo
-            $tempo = Cache::get('tempo', 0.5);
+            $tempo = Cache::get('tempo', 90);
 
             if ($tempo !== null) {
                 Log::info('Tempo retrieved from session', ['tempo' => $tempo]); // Log the valence
@@ -199,35 +199,68 @@ class SpotifyController extends Controller
 
             // get top 5 artist data
             $artistData = $this->getTop5Artists();
+
+            log::debug('Artists data', ['artistData' => $artistData]);
             $artistIds = [];
+
             foreach ($artistData['items'] as $item) {
-                $artistIds[] = $item['id']; 
+
+
+                $artistIds[] = $item['id'];
             }
             $artistStringIds = implode(',', $artistIds);
 
+            log::debug('Artist IDs', ['artistStringIds' => $artistStringIds]);
+            if (empty($artistStringIds)) {
+                throw new \Exception('No artists found');
+            }
+
             // get top 5 track data
             $tracksData = $this->getTop5Tracks();
+
+            log::debug('Tracks data', ['tracksData' => $tracksData]);
+            if (empty($tracksData['items'])) {
+                throw new \Exception('No tracks found');
+            }
+            if (empty($artistData['items'])) {
+                throw new \Exception('No artists found');
+            }
+
+
             $tracksIds = [];
             foreach ($tracksData['items'] as $item) {
-                $tracksIds[] = $item['id']; 
+                $tracksIds[] = $item['id'];
             }
             $trackStringIds = implode(',', $tracksIds);
 
-            // First get track info
-            $recResponse = Http::withToken($accessToken)
-                ->get("https://api.spotify.com/v1/recommendations?limit=1&seed_tracks={$trackStringIds}&seed_artists={$artistStringIds}&target_tempo={$tempo}&target_valence={$valence}");
+
+            $url = "https://api.spotify.com/v1/recommendations?limit=1&seed_artists={$artistStringIds}&target_tempo={$tempo}&target_valence={$valence}";
+
+            log::debug('Recommendation URL', ['url' => $url]);
+
+            $recResponse = Http::withToken($accessToken)->get($url);
 
             if (!$recResponse->successful()) {
-                Log::error('Track fetch error: ' . $recResponse->body());
-                throw new \Exception('Failed to fetch track');
+                Log::error('Recommendation API error', [
+                    'status' => $recResponse->status(),
+                    'body' => $recResponse->body(),
+                    'url' => $url
+                ]);
+                throw new \Exception('Failed to fetch recommendations');
             }
 
             $data = $recResponse->json();
+
+            if (empty($data['tracks'])) {
+                Log::error('No tracks found in recommendation response', ['response' => $data]);
+                throw new \Exception('No tracks found in recommendation response');
+            }
+
             $trackIds = collect($data['tracks'])->pluck('id');
 
             return $trackIds->all();
         } catch (\Exception $e) {
-            Log::error('Track error: ' . $e->getMessage());
+            Log::error('Recommendation error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -270,8 +303,8 @@ class SpotifyController extends Controller
             return array_merge(
                 $trackResponse->json(),
                 ['audio_features' => $audioResponse->json()],
-				['valence' => $valence] // Include valence in the response
-	            );
+                ['valence' => $valence] // Include valence in the response
+            );
         } catch (\Exception $e) {
             Log::error('Track error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
