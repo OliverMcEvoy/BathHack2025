@@ -56,7 +56,8 @@
                             <button class="control-button prev" @click="prevTrack">
                                 <i class="fas fa-step-backward"></i>
                             </button>
-                            <button class="control-button play" @click="togglePlay">
+                            <button class="control-button play" @click="togglePlay"
+                                :style="{ background: `linear-gradient(135deg, ${moods[selectedMood][0]}, ${moods[selectedMood][1]})` }">
                                 <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
                             </button>
                             <button class="control-button next" @click="nextTrack">
@@ -81,9 +82,6 @@
                         </div>
                         <div v-if="audioError" class="audio-state error">
                             <i class="fas fa-exclamation-triangle"></i> {{ audioError }}
-                        </div>
-                        <div v-if="!track.preview_url" class="audio-state">
-                            <i class="fas fa-info-circle"></i> No preview available for this track
                         </div>
                     </div>
                 </div>
@@ -138,6 +136,12 @@ export default {
         },
         durationFormatted() {
             return this.formatTime(this.audioElement?.duration || 0);
+        },
+        moodColor() {
+            return this.moods[this.selectedMood][0]; // Use the first color of the mood gradient
+        },
+        darkerMoodColor() {
+            return this.moods[this.selectedMood][1]; // Use the second color of the mood gradient for a darker shade
         }
     },
     methods: {
@@ -625,10 +629,6 @@ body {
     background: linear-gradient(135deg, #1DB954, #1ED760);
     box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
     color: white;
-}
-
-.control-button:hover {
-    transform: scale(1.05);
 }
 
 .control-button.play:hover {

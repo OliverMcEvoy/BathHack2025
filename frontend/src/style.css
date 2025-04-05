@@ -128,3 +128,7 @@ button:focus-visible {
   color: #666;
   font-size: 1.1rem;
 }
+
+.control-button.play {
+  background: none; /* Removed hardcoded color */
+}
