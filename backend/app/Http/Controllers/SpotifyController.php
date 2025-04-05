@@ -14,7 +14,9 @@ class SpotifyController extends Controller
         'user-modify-playback-state',
         'user-read-currently-playing',
         'streaming',
-        'app-remote-control'
+        'app-remote-control',
+        'web-playback', // Added scope
+        'user-read-email' // Added scope
     ];
 
     public function authorize()

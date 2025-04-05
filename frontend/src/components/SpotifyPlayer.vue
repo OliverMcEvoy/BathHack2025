@@ -148,10 +148,14 @@ export default {
         async getOAuthToken(callback) {
             try {
                 const response = await axios.get('http://127.0.0.1:8000/spotify/token');
-                callback(response.data.token);
+                if (response.data.token) {
+                    callback(response.data.token);
+                } else {
+                    throw new Error(response.data.error || 'Invalid token received');
+                }
             } catch (error) {
                 console.error('Error fetching Spotify token:', error);
-                this.audioError = 'Failed to fetch Spotify token';
+                this.audioError = 'Failed to fetch Spotify token. Ensure you are logged in and authorized.';
             }
         },
         async fetchSpotifyData() {
