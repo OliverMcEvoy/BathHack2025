@@ -1,0 +1,14 @@
+API Endpoint: https://e761-138-38-223-170.ngrok-free.app/external-api
+HTTP Method: POST
+Headers:
+  - Content-Type: application/json
+Body (Example):
+{
+    "key1": "value1",
+    "key2": "value2"
+}
+Notes:
+- Replace <your-laravel-app-domain> with the actual domain or IP address of your Laravel application if not using ngrok.
+- Ensure the Laravel application is accessible from the other laptop (e.g., via public IP, local network, or ngrok).
+- Use tools like Postman or cURL to test the API call.
+- If using ngrok, ensure the forwarding URL (e.g., https://e761-138-38-223-170.ngrok-free.app) is active and points to your Laravel application.

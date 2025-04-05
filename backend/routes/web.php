@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\SpotifyController;
 use App\Http\Middleware\CorsMiddleware;
 use Illuminate\Support\Facades\Session;
-
+use App\Http\Controllers\ExternalApiController;
+use Illuminate\Support\Facades\Log;
 
 Route::prefix('spotify')->group(function () {
     Route::get('/authorize', [SpotifyController::class, 'authorize']);
@@ -38,6 +39,14 @@ Route::prefix('spotify')->group(function () {
             return response()->json(['error' => 'Failed to fetch token: ' . $e->getMessage()], 500);
         }
     });
+});
+
+Route::post('/external-api', function (Request $request) {
+    Log::debug('Incoming /external-api request', [
+        'headers' => $request->headers->all(),
+        'body' => $request->all(),
+    ]);
+    return app(ExternalApiController::class)->logApiCall($request);
 });
 
 Route::get('/{any}', function () {

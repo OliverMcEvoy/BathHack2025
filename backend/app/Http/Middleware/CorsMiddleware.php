@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Support\Facades\Log;
 
 class CorsMiddleware
 {
@@ -22,10 +23,18 @@ class CorsMiddleware
         // Check if the origin is in the allowed list
         if (in_array($origin, $allowedOrigins)) {
             $response->headers->set('Access-Control-Allow-Origin', $origin);
+            $response->headers->set('Access-Control-Allow-Credentials', 'true'); // Allow credentials
         }
 
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN');
+
+        // Bypass CSRF token verification for /external-api
+        if ($request->is('external-api')) {
+            $csrfToken = csrf_token();
+            Log::debug('Setting X-CSRF-TOKEN header', ['csrf_token' => $csrfToken]);
+            $request->headers->set('X-CSRF-TOKEN', $csrfToken);
+        }
 
         return $response;
     }
