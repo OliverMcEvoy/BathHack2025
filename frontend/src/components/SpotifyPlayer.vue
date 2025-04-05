@@ -38,25 +38,20 @@
             </div>
 
             <!-- Now Playing Section -->
-            <div v-if="track" class="now-playing">
-                <!-- Album Art Column -->
-                <div class="album-column">
-                    <div class="album-art-container" :class="{ rotating: isPlaying }">
-                        <img :src="track.album.images[0].url" :alt="track.name" class="album-art" />
-                    </div>
-                    <div class="album-meta">
-                        <h2 class="album-name">{{ track.album.name }}</h2>
-                        <p class="album-year">{{ new Date(track.album.release_date).getFullYear() }} • {{
-                            track.album.total_tracks }} tracks</p>
-                    </div>
-                </div>
-
+            <div v-if="track" class="now-playing centered">
                 <!-- Track Info Column -->
                 <div class="track-column">
                     <div class="track-info">
+                        <!-- Album Art -->
+                        <div class="album-art-container" :class="{ rotating: isPlaying }">
+                            <img :src="track.album.images[0].url" :alt="track.name" class="album-art" />
+                        </div>
+
+                        <!-- Track Title and Artist -->
                         <h1 class="track-title">{{ track.name }}</h1>
                         <p class="artist">{{track.artists.map(a => a.name).join(', ')}}</p>
 
+                        <!-- Audio Controls -->
                         <div class="audio-controls">
                             <button class="control-button prev" @click="prevTrack">
                                 <i class="fas fa-step-backward"></i>
@@ -69,11 +64,12 @@
                             </button>
                         </div>
 
+                        <!-- Progress Bar -->
                         <div class="progress-container">
                             <div class="progress-bar" @click="seekAudio">
                                 <div class="progress" :style="{ width: progressPercentage + '%' }"></div>
                             </div>
-                            <div class="time-display">
+                            <div class="progress-time">
                                 <span>{{ currentTimeFormatted }}</span>
                                 <span>{{ durationFormatted }}</span>
                             </div>
@@ -306,20 +302,27 @@ export default {
             }
         },
         updateProgress() {
-            if (this.audioElement && this.audioElement.duration) {
-                const progress = (this.audioElement.currentTime / this.audioElement.duration) * 100;
-                this.progressPercentage = isNaN(progress) ? 0 : progress;
+            if (this.player && this.track) {
+                this.player.getCurrentState().then(state => {
+                    if (state) {
+                        this.currentTime = state.position / 1000;
+                        this.progressPercentage = (state.position / state.duration) * 100;
+                    }
+                });
             }
         },
         seekAudio(event) {
-            if (!this.audioElement || !this.audioElement.duration) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            const seekPosition = (event.clientX - rect.left) / rect.width;
-            this.audioElement.currentTime = this.audioElement.duration * seekPosition;
+            if (this.player && this.track) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const seekPosition = (event.clientX - rect.left) / rect.width;
+                const seekTime = seekPosition * this.audioElement.duration;
+                this.player.seek(seekTime * 1000);
+            }
         }
     },
     mounted() {
         this.initializeSpotifyPlayer();
+        setInterval(this.updateProgress, 1000); // Update progress every second
     },
     beforeUnmount() {
         if (this.player) {
@@ -519,12 +522,12 @@ body {
 }
 
 .album-art-container {
-    width: 200px;
-    height: 200px;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto 1rem;
     border-radius: 50%;
     overflow: hidden;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-    margin: 0 auto 1.5rem;
     transition: transform 0.3s ease;
     border: 4px solid rgba(255, 255, 255, 0.3);
 }
@@ -576,16 +579,18 @@ body {
 }
 
 .track-title {
-    font-size: 2.5rem;
+    text-align: center;
+    font-size: 2rem;
     margin-bottom: 0.5rem;
     color: #000;
     line-height: 1.2;
 }
 
 .artist {
-    font-size: 1.3rem;
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
     color: #000;
-    margin-bottom: 2rem;
 }
 
 .audio-controls {
@@ -639,7 +644,6 @@ body {
     background: rgba(0, 0, 0, 0.1);
     border-radius: 3px;
     cursor: pointer;
-    margin-bottom: 0.5rem;
 }
 
 .progress {
@@ -649,11 +653,28 @@ body {
     transition: width 0.1s linear;
 }
 
-.time-display {
+/* Center the Now Playing Section */
+.now-playing.centered {
+    margin: auto;
+    max-width: 1000px;
+    /* Increased width */
+    text-align: center;
+    padding: 2rem;
+    /* Added padding for better spacing */
+    display: flex;
+    /* Center content vertically and horizontally */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Progress Bar Time Display */
+.progress-time {
     display: flex;
     justify-content: space-between;
     font-size: 0.9rem;
     color: #000;
+    margin-top: 0.5rem;
 }
 
 /* Empty State */
