@@ -11,7 +11,18 @@ class VerifyCsrfToken extends Middleware
      *
      * @var array
      */
-    protected $except = [
-        '/external-api', // Exclude this route from CSRF verification
-    ];
+    // protected $except = [
+    //     '/external-api', // Exclude this route from CSRF verification
+    // ];
+
+    // /**
+    //  * Determine if the URI has been excluded from CSRF verification.
+    //  *
+    //  * @param \Illuminate\Http\Request $request
+    //  * @return bool
+    //  */
+    // protected function inExceptArray($request)
+    // {
+    //     return true; // Ignore CSRF tokens for all routes
+    // }
 }

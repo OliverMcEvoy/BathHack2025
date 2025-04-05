@@ -28,14 +28,6 @@ class CorsMiddleware
 
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN');
-
-        // Bypass CSRF token verification for /external-api
-        if ($request->is('external-api')) {
-            $csrfToken = csrf_token();
-
-            $request->headers->set('X-CSRF-TOKEN', $csrfToken);
-        }
-
         return $response;
     }
 }

@@ -291,6 +291,12 @@ export default {
                     // Store the device ID for future use
                     this.deviceId = response.data.deviceId;
 
+                    // Update valence from the response
+                    this.valence = response.data.valence || 0.5;
+
+                    // Update mood based on the new valence
+                    this.updateMood();
+
                     // Start playback
                     await this.player.resume();
                     this.isPlaying = true;

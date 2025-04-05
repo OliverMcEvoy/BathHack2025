@@ -141,11 +141,8 @@ class SpotifyController extends Controller
                 return $trackResponse->json();
             }
 
-            $valence = Session::get('valence', 0.5); // Default to 0.5 if valence is not in the session
-
-            if ($valence !== null) {
-                Log::info('Valence retrieved from session', ['valence' => $valence]); // Log the valence
-            }
+            $valence = $request->cookie('valence'); // Retrieve valence from cookie, default to 0.5
+            Log::info('Valence retrieved from cookie', ['valence' => $valence]); // Log the valence
 
             return array_merge(
                 $trackResponse->json(),
@@ -179,6 +176,9 @@ class SpotifyController extends Controller
 
             $devices = $devicesResponse->json()['devices'];
 
+            $valence = $request->cookie('valence', 0.5); // Retrieve valence from cookie, default to 0.5
+            Log::info('Valence retrieved from cookie in getAudio', ['valence' => $valence]); // Log the valence
+
             // Start playback on the first available device
             if (!empty($devices)) {
                 $deviceId = $devices[0]['id'];
@@ -192,7 +192,8 @@ class SpotifyController extends Controller
                     return response()->json([
                         'success' => true,
                         'token' => $accessToken,
-                        'deviceId' => $deviceId
+                        'deviceId' => $deviceId,
+                        'valence' => $valence // Include valence in the response
                     ]);
                 }
             }
