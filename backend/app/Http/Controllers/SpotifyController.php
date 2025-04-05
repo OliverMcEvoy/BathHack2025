@@ -183,14 +183,14 @@ class SpotifyController extends Controller
             $accessToken = $tokenData['access_token'];
 
             // get valence
-            $valence = Session::get('valence', 0.5); // Default to 0.5 if valence is not in the session
+            $valence = Cache::get('valence', 0.5);
 
             if ($valence !== null) {
                 Log::info('Valence retrieved from session', ['valence' => $valence]); // Log the valence
             }
 
             // get tempo
-            $tempo = Session::get('tempo', 0.5); // Default to 0.5 if valence is not in the session
+            $tempo = Cache::get('tempo', 0.5);
 
             if ($tempo !== null) {
                 Log::info('Tempo retrieved from session', ['tempo' => $tempo]); // Log the valence
@@ -264,11 +264,14 @@ class SpotifyController extends Controller
                 return $trackResponse->json();
             }
 
+            $valence = Cache::get('valence', 0.5); // Retrieve valence from session, default to 0.5
+            Log::info('Valence retrieved from session in getTrack', ['valence' => $valence]); // Log the valence
 
             return array_merge(
-                // $trackResponse->json(),
-                // ['audio_features' => $audioResponse->json()],
-            );
+                $trackResponse->json(),
+                ['audio_features' => $audioResponse->json()],
+				['valence' => $valence] // Include valence in the response
+	            );
         } catch (\Exception $e) {
             Log::error('Track error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
@@ -296,8 +299,8 @@ class SpotifyController extends Controller
 
             $devices = $devicesResponse->json()['devices'];
 
-            $valence = Cache::get('valence', 0.5); // Retrieve valence from cache, default to 0.5
-            Log::info('Valence retrieved from cache in getAudio', ['valence' => $valence]); // Log the valence
+            $valence = Cache::get('valence', 0.7); // Retrieve valence from session, default to 0.5
+            Log::info('Valence retrieved from session in getAudio', ['valence' => $valence]); // Log the valence
 
             // Start playback on the first available device
             if (!empty($devices)) {
@@ -321,7 +324,7 @@ class SpotifyController extends Controller
             return response()->json(['error' => 'No available playback devices', 'valence' => $valence], 404);
         } catch (\Exception $e) {
             Log::error("Audio playback error: " . $e->getMessage());
-            return response()->json(['error' => $e->getMessage(), 'valence' => Cache::get('valence', 0.5)], 500);
+            return response()->json(['error' => $e->getMessage(), 'valence' => session('valence', 0.5)], 500);
         }
     }
 }
