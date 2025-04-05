@@ -334,11 +334,21 @@ export default {
 .spotify-desktop {
     display: grid;
     grid-template-columns: 250px 1fr;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     overflow: hidden;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition: background 0.5s ease;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
 }
 
 /* Sidebar Styles */
