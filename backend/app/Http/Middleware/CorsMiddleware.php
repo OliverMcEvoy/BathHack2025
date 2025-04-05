@@ -32,7 +32,7 @@ class CorsMiddleware
         // Bypass CSRF token verification for /external-api
         if ($request->is('external-api')) {
             $csrfToken = csrf_token();
-            Log::debug('Setting X-CSRF-TOKEN header', ['csrf_token' => $csrfToken]);
+
             $request->headers->set('X-CSRF-TOKEN', $csrfToken);
         }
 

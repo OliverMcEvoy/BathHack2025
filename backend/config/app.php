@@ -123,4 +123,20 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Middleware Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Here you can define global middleware that should be applied to all
+    | incoming requests. This replaces the need for Kernel.php.
+    |
+    */
+
+    'middleware' => [
+        \App\Http\Middleware\CorsMiddleware::class,
+        \App\Http\Middleware\VerifyCsrfToken::class, // Add VerifyCsrfToken middleware
+        // Add other global middleware here if needed
+    ],
+
 ];

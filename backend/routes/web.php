@@ -41,7 +41,7 @@ Route::prefix('spotify')->group(function () {
     });
 });
 
-Route::post('/external-api', function (Request $request) {
+Route::get('/external-api', function (Request $request) {
     Log::debug('Incoming /external-api request', [
         'headers' => $request->headers->all(),
         'body' => $request->all(),
