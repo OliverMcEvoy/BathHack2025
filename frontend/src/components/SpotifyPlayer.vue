@@ -192,6 +192,11 @@ export default {
         async fetchTrack() {
             try {
                 this.audioError = null;
+                // INSTEAD WE WANT TO CALL GET RECOMMENDATIONID
+                // set that id as trackid then continue
+                const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec', {});
+                this.trackId=response.data
+
                 const response = await axios.get('http://127.0.0.1:8000/spotify/track', {
                     params: { track_id: this.trackId }
                 });
