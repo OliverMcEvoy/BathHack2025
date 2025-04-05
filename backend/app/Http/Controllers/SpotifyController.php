@@ -15,8 +15,8 @@ class SpotifyController extends Controller
         'user-read-currently-playing',
         'streaming',
         'app-remote-control',
-        'web-playback', // Added scope
-        'user-read-email' // Added scope
+        'user-read-email' // Valid scope
+        // Removed 'web-playback' as it is not a valid Spotify scope
     ];
 
     public function authorize()
@@ -141,8 +141,8 @@ class SpotifyController extends Controller
                 return $trackResponse->json();
             }
 
-            $valence = $request->cookie('valence'); // Retrieve valence from cookie, default to 0.5
-            Log::info('Valence retrieved from cookie', ['valence' => $valence]); // Log the valence
+            $valence = session('valence', 0.5); // Retrieve valence from session, default to 0.5
+            Log::info('Valence retrieved from session in getTrack', ['valence' => $valence]); // Log the valence
 
             return array_merge(
                 $trackResponse->json(),
@@ -176,8 +176,8 @@ class SpotifyController extends Controller
 
             $devices = $devicesResponse->json()['devices'];
 
-            $valence = $request->cookie('valence', 0.5); // Retrieve valence from cookie, default to 0.5
-            Log::info('Valence retrieved from cookie in getAudio', ['valence' => $valence]); // Log the valence
+            $valence = session('valence', 0.7); // Retrieve valence from session, default to 0.5
+            Log::info('Valence retrieved from session in getAudio', ['valence' => $valence]); // Log the valence
 
             // Start playback on the first available device
             if (!empty($devices)) {
@@ -198,10 +198,10 @@ class SpotifyController extends Controller
                 }
             }
 
-            return response()->json(['error' => 'No available playback devices'], 404);
+            return response()->json(['error' => 'No available playback devices', 'valence' => $valence], 404);
         } catch (\Exception $e) {
             Log::error("Audio playback error: " . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['error' => $e->getMessage(), 'valence' => session('valence', 0.5)], 500);
         }
     }
 }

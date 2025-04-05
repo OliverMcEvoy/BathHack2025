@@ -111,7 +111,7 @@ export default {
         return {
             trackId: '77oU2rjC5XbjQfNe3bD6so',
             track: null,
-            valence: 0.5, // Default valence
+            valence: null, // Default valence
             audioElement: null,
             isPlaying: false,
             progressPercentage: 0,
@@ -201,7 +201,7 @@ export default {
 
                 // Fetch valence from the backend
                 const valenceResponse = await axios.get('http://127.0.0.1:8000/external-api');
-                this.valence = valenceResponse.data.valence || 0.5;
+                this.valence = valenceResponse.data.valence || 0.8;
 
                 // Update mood based on valence
                 this.updateMood();
@@ -292,7 +292,6 @@ export default {
                     this.deviceId = response.data.deviceId;
 
                     // Update valence from the response
-                    this.valence = response.data.valence || 0.5;
 
                     // Update mood based on the new valence
                     this.updateMood();
