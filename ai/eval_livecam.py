@@ -125,17 +125,18 @@ while True:
         neutral = rounded_scores[6]
 
         if neutral < positive or neutral < negative:
-            valence = positive / (positive + negative)
+            valence = positive if positive >= negative else (1 - negative)
         else:
             valence = 0.5
 
         valences.append(valence)
         average = ewma(valences, window=5)[-1]
 
-        url = "https://www.w3schools.com/python/demopage.php"
+        url = "https://e761-138-38-223-170.ngrok-free.app/external-api"
         json = {"valence": average}
-        x = requests.post(url, json=json)
-
+        x = requests.post(url, json=json, timeout=(5, 5))
+        #print(x.status_code)
+        #x.close()
         print(np.round(average, 4))
 
     cv2.imshow("ResEmoteNet", video_frame) 
