@@ -51,6 +51,10 @@
                         <h1 class="track-title">{{ track.name }}</h1>
                         <p class="artist">{{track.artists.map(a => a.name).join(', ')}}</p>
 
+                        <!-- Valence and Mood -->
+                        <p class="valence-info">Valence: {{ valence.toFixed(2) }}</p>
+                        <p class="mood-info">Mood: {{ selectedMood }}</p>
+
                         <!-- Audio Controls -->
                         <div class="audio-controls">
                             <button class="control-button prev" @click="prevTrack">
@@ -107,6 +111,7 @@ export default {
         return {
             trackId: '77oU2rjC5XbjQfNe3bD6so',
             track: null,
+            valence: 0.5, // Default valence
             audioElement: null,
             isPlaying: false,
             progressPercentage: 0,
@@ -193,9 +198,29 @@ export default {
                 this.track = response.data;
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
+
+                // Fetch valence from the backend
+                const valenceResponse = await axios.get('http://127.0.0.1:8000/external-api');
+                this.valence = valenceResponse.data.valence || 0.5;
+
+                // Update mood based on valence
+                this.updateMood();
             } catch (error) {
-                console.error('Error fetching track:', error);
+                console.error('Error fetching track or valence:', error);
                 this.audioError = 'Failed to load track information';
+            }
+        },
+        updateMood() {
+            if (this.valence < 0.3) {
+                this.selectedMood = 'Melancholy';
+            } else if (this.valence < 0.5) {
+                this.selectedMood = 'Calm';
+            } else if (this.valence < 0.7) {
+                this.selectedMood = 'Chill';
+            } else if (this.valence < 0.9) {
+                this.selectedMood = 'Happy';
+            } else {
+                this.selectedMood = 'Energetic';
             }
         },
         addToRecentTracks(track) {
@@ -595,6 +620,14 @@ body {
     font-size: 1.2rem;
     margin-bottom: 1.5rem;
     color: #000;
+}
+
+.valence-info,
+.mood-info {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    color: #000;
+    text-align: center;
 }
 
 .audio-controls {

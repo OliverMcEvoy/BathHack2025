@@ -41,13 +41,7 @@ Route::prefix('spotify')->group(function () {
     });
 });
 
-Route::get('/external-api', function (Request $request) {
-    Log::debug('Incoming /external-api request', [
-        'headers' => $request->headers->all(),
-        'body' => $request->all(),
-    ]);
-    return app(ExternalApiController::class)->logApiCall($request);
-});
+Route::post('/external-api', [ExternalApiController::class, 'logApiCall']);
 
 Route::get('/{any}', function () {
     return file_get_contents(public_path('index.html')); // Serve the Vue app's entry point

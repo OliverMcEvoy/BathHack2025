@@ -141,9 +141,16 @@ class SpotifyController extends Controller
                 return $trackResponse->json();
             }
 
+            $valence = Session::get('valence', 0.5); // Default to 0.5 if valence is not in the session
+
+            if ($valence !== null) {
+                Log::info('Valence retrieved from session', ['valence' => $valence]); // Log the valence
+            }
+
             return array_merge(
                 $trackResponse->json(),
-                ['audio_features' => $audioResponse->json()]
+                ['audio_features' => $audioResponse->json()],
+                ['valence' => $valence] // Include valence in the response
             );
         } catch (\Exception $e) {
             Log::error('Track error: ' . $e->getMessage());
