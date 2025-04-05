@@ -196,10 +196,9 @@ export default {
                     params: { track_id: this.trackId }
                 });
                 this.track = response.data;
-                console.log('repsponse:', response.data);
+                console.log('repsponse:', response);
                 // Update valence from the response
                 console.log('Valence from response:', response.data.valence);
-                this.valence = response.data.valence || 0.8;
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
 
@@ -283,7 +282,11 @@ export default {
                     await this.initializeSpotifyPlayer();
                 }
 
-                const response = await axios.get(`http://127.0.0.1:8000/spotify/audio?track_id=${this.track.id}`);
+                const response = await axios.get(`http://127.0.0.1:8000/spotify/audio`, {
+                    params: {
+                        track_id: this.track.id
+                    }
+                });
 
                 console.log('Audio setup response:', response.data);
 
@@ -291,6 +294,8 @@ export default {
                     // Store the device ID for future use
                     this.deviceId = response.data.deviceId;
 
+                    console.log('response.data.valence:', response.data.valence);
+                    this.valence = response.data.valence || 0.8;
                     // Update mood based on the new valence
                     this.updateMood();
 

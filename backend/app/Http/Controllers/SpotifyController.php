@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Cache;
 
 class SpotifyController extends Controller
 {
@@ -141,13 +142,10 @@ class SpotifyController extends Controller
                 return $trackResponse->json();
             }
 
-            $valence = session('valence', 0.5); // Retrieve valence from session, default to 0.5
-            Log::info('Valence retrieved from session in getTrack', ['valence' => $valence]); // Log the valence
 
             return array_merge(
-                $trackResponse->json(),
-                ['audio_features' => $audioResponse->json()],
-                ['valence' => $valence] // Include valence in the response
+                // $trackResponse->json(),
+                // ['audio_features' => $audioResponse->json()],
             );
         } catch (\Exception $e) {
             Log::error('Track error: ' . $e->getMessage());
@@ -176,8 +174,8 @@ class SpotifyController extends Controller
 
             $devices = $devicesResponse->json()['devices'];
 
-            $valence = session('valence', 0.7); // Retrieve valence from session, default to 0.5
-            Log::info('Valence retrieved from session in getAudio', ['valence' => $valence]); // Log the valence
+            $valence = Cache::get('valence', 0.5); // Retrieve valence from cache, default to 0.5
+            Log::info('Valence retrieved from cache in getAudio', ['valence' => $valence]); // Log the valence
 
             // Start playback on the first available device
             if (!empty($devices)) {
@@ -201,7 +199,7 @@ class SpotifyController extends Controller
             return response()->json(['error' => 'No available playback devices', 'valence' => $valence], 404);
         } catch (\Exception $e) {
             Log::error("Audio playback error: " . $e->getMessage());
-            return response()->json(['error' => $e->getMessage(), 'valence' => session('valence', 0.5)], 500);
+            return response()->json(['error' => $e->getMessage(), 'valence' => Cache::get('valence', 0.5)], 500);
         }
     }
 }
