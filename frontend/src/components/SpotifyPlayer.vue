@@ -196,15 +196,13 @@ export default {
                     params: { track_id: this.trackId }
                 });
                 this.track = response.data;
+                console.log('repsponse:', response.data);
+                // Update valence from the response
+                console.log('Valence from response:', response.data.valence);
+                this.valence = response.data.valence || 0.8;
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
 
-                // Fetch valence from the backend
-                const valenceResponse = await axios.get('http://127.0.0.1:8000/external-api');
-                this.valence = valenceResponse.data.valence || 0.8;
-
-                // Update mood based on valence
-                this.updateMood();
             } catch (error) {
                 console.error('Error fetching track or valence:', error);
                 this.audioError = 'Failed to load track information';
@@ -287,11 +285,11 @@ export default {
 
                 const response = await axios.get(`http://127.0.0.1:8000/spotify/audio?track_id=${this.track.id}`);
 
+                console.log('Audio setup response:', response.data);
+
                 if (response.data.success) {
                     // Store the device ID for future use
                     this.deviceId = response.data.deviceId;
-
-                    // Update valence from the response
 
                     // Update mood based on the new valence
                     this.updateMood();
