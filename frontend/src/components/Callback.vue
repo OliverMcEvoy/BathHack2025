@@ -20,7 +20,9 @@ export default {
 
         if (code) {
             try {
-                const response = await axios.get('http://127.0.0.1:8000/spotify/callback', { code });
+                const response = await axios.get('http://127.0.0.1:8000/spotify/callback', {
+                    params: { code },
+                });
                 console.log('Spotify access token:', response.data);
                 localStorage.setItem('spotify_token', response.data.access_token);
                 window.location.href = '/'; // Redirect to the main player

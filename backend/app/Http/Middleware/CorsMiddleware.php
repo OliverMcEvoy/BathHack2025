@@ -10,7 +10,20 @@ class CorsMiddleware
     {
         $response = $next($request);
 
-        $response->headers->set('Access-Control-Allow-Origin', 'http://localhost:5173');
+        // Define allowed origins
+        $allowedOrigins = [
+            'http://localhost:5173',
+            'http://localhost:8000',
+        ];
+
+        // Get the origin of the current request
+        $origin = $request->headers->get('Origin');
+
+        // Check if the origin is in the allowed list
+        if (in_array($origin, $allowedOrigins)) {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+        }
+
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 

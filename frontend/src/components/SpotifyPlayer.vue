@@ -500,16 +500,19 @@ export default {
 .album-column {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    padding-top: 1rem;
 }
 
 .album-art-container {
-    width: 100%;
-    aspect-ratio: 1/1;
-    border-radius: 15px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
     overflow: hidden;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-    margin-bottom: 1.5rem;
+    margin: 0 auto 1.5rem;
     transition: transform 0.3s ease;
+    border: 4px solid rgba(255, 255, 255, 0.3);
 }
 
 .album-art {
