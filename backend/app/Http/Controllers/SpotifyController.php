@@ -110,6 +110,128 @@ class SpotifyController extends Controller
         }
     }
 
+    public function getTop5Artists()
+    {
+        try {
+            // Get new token
+            $tokenData = $this->getAccessToken();
+
+            if (!isset($tokenData['access_token'])) {
+                throw new \Exception('Invalid access token');
+            }
+
+            $accessToken = $tokenData['access_token'];
+
+            // First get artist info
+            $artistResponse = Http::withToken($accessToken)
+                ->get("https://api.spotify.com/v1/me/top/artists?limit=5");
+
+            if (!$artistResponse->successful()) {
+                Log::error('Artist top 5 fetch error: ' . $artistResponse->body());
+                throw new \Exception('Failed to fetch top 5 artists');
+            }
+
+            return array_merge(
+                $artistResponse->json(),
+            );
+        } catch (\Exception $e) {
+            Log::error('Artist top 5 error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getTop5Tracks()
+    {
+        try {
+            // Get new token
+            $tokenData = $this->getAccessToken();
+
+            if (!isset($tokenData['access_token'])) {
+                throw new \Exception('Invalid access token');
+            }
+
+            $accessToken = $tokenData['access_token'];
+
+            // First get track info
+            $trackResponse = Http::withToken($accessToken)
+                ->get("https://api.spotify.com/v1/me/top/tracks?limit=5");
+
+            if (!$trackResponse->successful()) {
+                Log::error('Track top 5 fetch error: ' . $trackResponse->body());
+                throw new \Exception('Failed to fetch top 5 tracks');
+            }
+
+            return array_merge(
+                $trackResponse->json(),
+            );
+        } catch (\Exception $e) {
+            Log::error('Track top 5 error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getReccomendationId()
+    {
+        try {
+            // Get new token
+            $tokenData = $this->getAccessToken();
+
+            if (!isset($tokenData['access_token'])) {
+                throw new \Exception('Invalid access token');
+            }
+
+            $accessToken = $tokenData['access_token'];
+
+            // get valence
+            $valence = Session::get('valence', 0.5); // Default to 0.5 if valence is not in the session
+
+            if ($valence !== null) {
+                Log::info('Valence retrieved from session', ['valence' => $valence]); // Log the valence
+            }
+
+            // get tempo
+            $tempo = Session::get('tempo', 0.5); // Default to 0.5 if valence is not in the session
+
+            if ($tempo !== null) {
+                Log::info('Tempo retrieved from session', ['tempo' => $tempo]); // Log the valence
+            }
+
+
+            // get top 5 artist data
+            $artistData = $this->getTop5Artists();
+            $artistIds = [];
+            foreach ($artistData['items'] as $item) {
+                $artistIds[] = $item['id']; 
+            }
+            $artistStringIds = implode(',', $artistIds);
+
+            // get top 5 track data
+            $tracksData = $this->getTop5Tracks();
+            $tracksIds = [];
+            foreach ($tracksData['items'] as $item) {
+                $tracksIds[] = $item['id']; 
+            }
+            $trackStringIds = implode(',', $tracksIds);
+
+            // First get track info
+            $recResponse = Http::withToken($accessToken)
+                ->get("https://api.spotify.com/v1/recommendations?limit=1&seed_tracks={$trackStringIds}&seed_artists={$artistStringIds}&target_tempo={$tempo}&target_valence={$valence}");
+
+            if (!$recResponse->successful()) {
+                Log::error('Track fetch error: ' . $recResponse->body());
+                throw new \Exception('Failed to fetch track');
+            }
+
+            $data = $recResponse->json();
+            $trackIds = collect($data['tracks'])->pluck('id');
+
+            return $trackIds->all();
+        } catch (\Exception $e) {
+            Log::error('Track error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     public function getTrack(Request $request)
     {
         try {
