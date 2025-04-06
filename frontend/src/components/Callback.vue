@@ -24,7 +24,7 @@ export default {
             });
 
             if (response.data.success) {
-                localStorage.setItem('spotify_toekn_2', response.data.token); // Store token
+                localStorage.setItem('access_token', response.data.token); // Store token
                 console.log('Token stored:', response.data.token);
                 this.$router.push('/'); // Redirect to the main page
             } else {

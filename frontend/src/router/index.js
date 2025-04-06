@@ -23,7 +23,7 @@ const routes = [
                 next(`/login?code=${code}&state=${to.query.state || ''}`);
             } 
             // Normal auth check
-            else if (!localStorage.getItem('spotify_token_2')) {
+            else if (!localStorage.getItem('access_token')) {
                 next('/login');
             } else {
                 next();

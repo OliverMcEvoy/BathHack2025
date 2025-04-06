@@ -74,7 +74,7 @@ export default {
                         params: { code, state },
                     });
 
-                    console.log(localStorage.getItem('spotify_toekn_2'));
+                    console.log(localStorage.getItem('access_token'));
                     if (true) {
                         // Store token
 
