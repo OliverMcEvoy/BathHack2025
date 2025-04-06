@@ -182,16 +182,12 @@ class SpotifyController extends Controller
     public function getTopTracksTitles()
     {
         try {
-            // Get new token
             $tokenData = $this->getAccessToken();
-    
             if (!isset($tokenData['access_token'])) {
                 throw new \Exception('Invalid access token');
             }
     
             $accessToken = $tokenData['access_token'];
-    
-            // Get top tracks
             $trackResponse = Http::withToken($accessToken)
                 ->get("https://api.spotify.com/v1/me/top/tracks?limit=3");
     
@@ -201,28 +197,50 @@ class SpotifyController extends Controller
             }
     
             $data = $trackResponse->json();
-            $songsWithIds = [];
+            $songsWithAnalysis = [];
+    
+            $gpt = new GPTController(); 
+    
+            $csvPath = storage_path('app/song_analysis.csv');
+            $fileExists = file_exists($csvPath);
+            $handle = fopen($csvPath, 'a');
+    
+            if (!$fileExists) {
+                fputcsv($handle, ['ID', 'Song', 'Tempo', 'Valence']);
+            }
     
             foreach ($data['items'] as $track) {
                 $trackName = $track['name'];
                 $artistName = $track['artists'][0]['name'];
                 $trackId = $track['id'];
-    
                 $formattedSong = $trackName . ' by ' . $artistName;
     
-                $songsWithIds[] = [
-                    'id' => $trackId,
-                    'song' => $formattedSong
-                ];
+                // Call GPT analyze
+                $analysis = $gpt->analyzeSongData($trackId, $formattedSong);
+    
+                if ($analysis) {
+                    // Save to CSV
+                    fputcsv($handle, [$trackId, $formattedSong, $analysis['tempo'], $analysis['valence']]);
+    
+                    $songsWithAnalysis[] = [
+                        'id' => $trackId,
+                        'song' => $formattedSong,
+                        'tempo' => $analysis['tempo'],
+                        'valence' => $analysis['valence'],
+                    ];
+                }
             }
     
-            return $songsWithIds;
+            fclose($handle);
+    
+            return response()->json($songsWithAnalysis);
     
         } catch (\Exception $e) {
             Log::error('Track top error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    
     
 
     // public function getReccomendationId()

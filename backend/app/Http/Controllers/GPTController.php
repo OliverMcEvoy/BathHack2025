@@ -23,16 +23,8 @@ class GPTController extends Controller
         ]);
     }
 
-    public function analyzeSong(Request $request)
+    public function analyzeSongData($id, $song)
     {
-        $request->validate([
-            'id' => 'required|string',
-            'song' => 'required|string',
-        ]);
-    
-        $id = $request->id;
-        $song = $request->song;
-    
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
@@ -50,45 +42,26 @@ class GPTController extends Controller
                 ],
                 'temperature' => 0.7,
             ]);
-    
+
             if (!$response->successful()) {
                 throw new \Exception('API request failed: ' . $response->body());
             }
-    
+
             $content = $response->json()['choices'][0]['message']['content'];
             $data = json_decode($content, true);
-    
+
             if (!is_array($data) || !isset($data['tempo'], $data['valence'])) {
                 throw new \Exception('Unexpected response format: ' . $content);
             }
-    
-            $songData = [
-                'id' => $id,
-                'song' => $song,
+
+            return [
                 'tempo' => $data['tempo'],
                 'valence' => $data['valence'],
             ];
-    
-            // Save to CSV
-            $csvPath = storage_path('app/song_analysis.csv');
-            $fileExists = file_exists($csvPath);
-            $handle = fopen($csvPath, 'a');
-    
-            if (!$fileExists) {
-                fputcsv($handle, ['ID', 'Song', 'Tempo', 'Valence']); // Header row
-            }
-    
-            fputcsv($handle, [$id, $song, $data['tempo'], $data['valence']]);
-            fclose($handle);
-    
-            return $songData;
-    
+
         } catch (\Exception $e) {
             Log::error('OpenAI music analysis error: ' . $e->getMessage());
-            return [
-                'error' => 'Failed to analyze song',
-                'message' => $e->getMessage(),
-            ];
+            return null;
         }
     }
     
