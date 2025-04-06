@@ -4,7 +4,10 @@
         <div v-for="(bubble, index) in bubbles" :key="index" class="bubble" :style="bubbleStyle(bubble)"></div>
 
         <Sidebar :recentTracks="recentTracks" :collapsed="collapsed" :darkMode="darkMode"
-            @playRecentTrack="playRecentTrack" />
+            @playRecentTrack="playRecentTrack" @triggerConfetti="triggerConfetti" />
+        <button class="confetti-icon" @click="triggerConfetti">
+            <i class="fas fa-star"></i>
+        </button>
         <button class="toggle-dark-mode" @click="toggleDarkMode">
             <i :class="darkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
         </button>
@@ -14,7 +17,6 @@
         <button class="logout-icon" @click="logout">
             <i class="fas fa-sign-out-alt"></i>
         </button>
-        <button class="confetti-button" @click="triggerConfetti">Confetti!</button>
         <div class="main-content" :class="{ centered: collapsed }">
             <NowPlaying v-if="track" :track="track" :isPlaying="isPlaying" :rotationAngle="rotationAngle"
                 :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
@@ -211,8 +213,11 @@ export default {
                     this.isPlaying = true;
 
                     this.player.addListener('player_state_changed', state => {
-                        if (state && state.track_window.current_track && state.paused && state.position === 0) {
-                            this.fetchTrack();
+                        if (state && state.track_window.current_track) {
+                            // Ensure the player advances only one song forward
+                            if (state.paused && state.position === 0 && state.track_window.previous_tracks.length === 1) {
+                                this.fetchTrack();
+                            }
                         }
                     });
                 });
@@ -365,7 +370,7 @@ export default {
                         this.audioError = `Player error: ${message}`;
                     });
                     this.player.addListener('authentication_error', ({ message }) => {
-                        this.audioError = 'Auth failed - please refresh';
+                        this.audioError = ''; // Clear the error message or leave it empty
                     });
                     this.player.addListener('account_error', ({ message }) => {
                         this.audioError = 'Premium account required';
@@ -1082,21 +1087,36 @@ body {
     margin-bottom: 1rem;
 }
 
-.confetti-button {
+.confetti-icon {
     position: absolute;
-    top: 100px;
-    right: 20px;
-    padding: 0.5rem 1rem;
+    bottom: 120px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.1);
     border: none;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #ff6f91, #ff9671);
-    color: white;
+    padding: 0.5rem;
+    border-radius: 50%;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.confetti-button:hover {
-    transform: scale(1.08);
-    box-shadow: 0 0 15px rgba(255, 150, 113, 0.6);
+.confetti-icon i {
+    font-size: 1.2rem;
+    color: black;
+    /* Default icon color for normal mode */
+}
+
+.spotify-desktop.darkMode .confetti-icon i {
+    color: #A78BFA;
+    /* Purple icon color for dark mode */
+}
+
+.confetti-icon:hover {
+    background: rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 </style>
