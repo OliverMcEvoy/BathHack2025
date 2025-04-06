@@ -1,7 +1,8 @@
 <template>
     <div class="spotify-desktop" :class="{ collapsed, darkMode }" :style="backgroundStyle">
         <!-- Dynamic bubbles with randomized properties -->
-        <div v-for="(bubble, index) in bubbles" :key="index" class="bubble" :style="bubbleStyle(bubble)"></div>
+        <div v-for="(bubble, index) in bubbles" :key="index" class="bubble"
+            :style="[bubbleStyle(bubble), bubbleDynamicStyles]"></div>
 
         <Sidebar :recentTracks="recentTracks" :collapsed="collapsed" :darkMode="darkMode"
             @playRecentTrack="playRecentTrack" @triggerConfetti="triggerConfetti" />
@@ -49,6 +50,12 @@ export default {
         NowPlaying,
         ValenceDisplay,
     },
+    props: {
+        tempo: {
+            type: Number,
+            default: 120
+        }
+    },
     data() {
         return {
             trackId: '',
@@ -82,8 +89,16 @@ export default {
                 animationDuration: 20 + Math.random() * 40 // Slower animation duration
             })),
             darkMode: false, // New state for dark mode
-            jsConfetti: null
+            jsConfetti: null,
+            trackStartTime: 0
         };
+    },
+    watch: {
+        track(newVal, oldVal) {
+            if (newVal && (!oldVal || newVal.id !== oldVal.id)) {
+                this.trackStartTime = Date.now();
+            }
+        }
     },
     computed: {
         backgroundStyle() {
@@ -96,14 +111,33 @@ export default {
                 transition: this.backgroundAnimation ? 'background 1.5s ease' : 'none',
             } : {};
         },
+        currentTimeClamped() {
+            const elapsed = (Date.now() - this.trackStartTime) / 1000;
+            return Math.min(this.currentTime, elapsed);
+        },
         currentTimeFormatted() {
-            return this.formatTime(this.currentTime);
+            return this.formatTime(this.currentTimeClamped);
         },
         durationFormatted() {
             return this.formatTime(this.track?.duration_ms / 1000 || 0);
         },
         rotationSpeed() {
             return Math.max(5, 5 + (this.displayValence * 15)); // Slower spin, minimum 5
+        },
+        bubbleDynamicStyles() {
+            const minTempo = 60;
+            const maxTempo = 120;
+            const clamped = Math.min(maxTempo, Math.max(minTempo, this.tempo));
+            const factor = (clamped - minTempo) / (maxTempo - minTempo);
+            let opacity = 0.4 + ((0.5 * factor) ** 2);
+            if (this.darkMode) {
+                opacity = Math.min(0.9, opacity * 2);
+            }
+            const blur = 24 + (10 * factor);
+            return {
+                opacity,
+                filter: `blur(${blur}px)`
+            };
         }
     },
     methods: {
@@ -283,7 +317,7 @@ export default {
                 console.log('Valence and Tempo response:', response.data);
                 if (response.data?.valence !== undefined && response.data?.tempo !== undefined) {
                     this.valence = response.data.valence;
-                    this.tempo = response.data.tempo; // Store tempo
+                    this.tempo = response.data.tempo <= 10 ? 67 : response.data.tempo; // Set tempo to 67 if <= 10
                 } else {
                     throw new Error('Failed to fetch valence and tempo');
                 }
@@ -294,7 +328,7 @@ export default {
         async fetchValencePeriodically() {
             this.valenceInterval = setInterval(async () => {
                 await this.fetchValenceAndTempo(); // Fetch both valence and tempo periodically
-            }, 500);
+            }, 2000);
         },
         updateGradient() {
             const valenceColorMap = this.darkMode
