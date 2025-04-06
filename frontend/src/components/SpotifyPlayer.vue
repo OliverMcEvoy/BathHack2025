@@ -386,6 +386,17 @@ export default {
         toggleSidebar() {
             this.collapsed = !this.collapsed;
         },
+
+        updateProgress() {
+            if (this.isPlaying && this.track) {
+                this.currentTime += 0.5; // Increment current time by 0.5 seconds
+                if (this.currentTime > this.track.duration_ms / 1000) {
+                    this.currentTime = this.track.duration_ms / 1000; // Cap at track duration
+                }
+                this.progressPercentage = (this.currentTime / (this.track.duration_ms / 1000)) * 100;
+            }
+            setTimeout(this.updateProgress, 500); // Update every 0.5 seconds
+        },
     },
     mounted() {
         this.fetchValencePeriodically(); // Start periodic valence fetching
@@ -402,6 +413,9 @@ export default {
 
         // Start the rotation update loop
         this.updateRotation();
+
+        // Start the progress bar and current time update loop
+        this.updateProgress();
     },
     beforeUnmount() {
         if (this.valenceInterval) clearInterval(this.valenceInterval); // Clear interval on unmount

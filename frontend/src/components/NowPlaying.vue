@@ -54,3 +54,27 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.album-art-container {
+    width: 350px;
+    /* Increased size */
+    height: 350px;
+    /* Increased size */
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 auto 1rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.album-art-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+</style>
