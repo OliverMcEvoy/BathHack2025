@@ -1,5 +1,8 @@
 <template>
     <div class="spotify-desktop" :class="{ collapsed }" :style="backgroundStyle">
+        <!-- Dynamic bubbles with randomized properties -->
+        <div v-for="(bubble, index) in bubbles" :key="index" class="bubble" :style="bubbleStyle(bubble)"></div>
+
         <Sidebar :recentTracks="recentTracks" :collapsed="collapsed" @playRecentTrack="playRecentTrack" />
         <button class="toggle-sidebar" @click="toggleSidebar">
             <i :class="collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
@@ -54,18 +57,32 @@ export default {
             gradientEnd: '#FDF6EC',
             previousValence: 0.5,
             valenceInterval: null,
-            backgroundAnimation: false, // For background animation
-            interpolatedValence: 0.5, // Smoothly transitioning valence
-            displayValence: 0.5, // Smoothly transitioning display valence
-            rotationAngle: 0, // Current rotation angle in degrees
-            collapsed: false, // Sidebar collapsed state
+            backgroundAnimation: false,
+            interpolatedValence: 0.5,
+            displayValence: 0.5,
+            rotationAngle: 0,
+            collapsed: false,
+            bubbles: Array(20).fill().map(() => ({
+                startX: Math.random(),
+                startY: Math.random(),
+                xMove: 30 + Math.random() * 100,
+                yMove: 50 + Math.random() * 150,
+                size: 0.8 + Math.random() * 1.2,
+                scale: 0.8 + Math.random() * 0.8,
+                animationDuration: 10 + Math.random() * 20
+            })),
         };
     },
     computed: {
         backgroundStyle() {
             return this.track ? {
-                background: `linear-gradient(135deg, ${this.gradientStart}, ${this.gradientEnd})`,
+                background: `linear-gradient(135deg, ${this.gradientStart}, ${this.gradientEnd}, ${this.gradientStart})`,
+                backgroundSize: '400% 400%',
+                '--animation-duration': `${30 - (this.displayValence * 25)}s`,
+                '--gradient-start': this.gradientStart,
+                '--gradient-end': this.gradientEnd,
                 transition: this.backgroundAnimation ? 'background 1.5s ease' : 'none',
+                '--valence-speed': (1 + this.displayValence).toFixed(2),
             } : {};
         },
         currentTimeFormatted() {
@@ -75,30 +92,37 @@ export default {
             return this.formatTime(this.track?.duration_ms / 1000 || 0);
         },
         rotationSpeed() {
-            // Map valence (0.0 to 1.0) to rotation speed (degrees per second)
-            return 10 + (this.displayValence * 30); // Speed ranges from 30°/s to 300°/s
+            return 10 + (this.displayValence * 30);
         }
     },
     methods: {
+        bubbleStyle(bubble) {
+            return {
+                '--random-start-x': bubble.startX,
+                '--random-start-y': bubble.startY,
+                '--random-x-move': `${bubble.xMove}px`,
+                '--random-y-move': `${bubble.yMove}px`,
+                '--bubble-size': bubble.size,
+                '--bubble-scale': bubble.scale,
+                '--bubble-animation-duration': `${bubble.animationDuration / (1 + this.displayValence)}s`
+            };
+        },
         async startListening() {
             this.audioLoading = true;
-            await this.fetchTrack(); // Load the track in the background
-            this.backgroundAnimation = true; // Trigger background animation
+            await this.fetchTrack();
+            this.backgroundAnimation = true;
             this.audioLoading = false;
-            this.togglePlay(); // Start playing the track
+            this.togglePlay();
         },
         async fetchTrack() {
             try {
                 this.audioError = null;
-
-                // Get recommendation
                 const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
                 if (!recResponse.data?.recommendation) {
                     throw new Error('No track recommendation received');
                 }
                 this.trackId = recResponse.data.recommendation;
 
-                // Get track details
                 const trackResponse = await axios.get('http://127.0.0.1:8000/spotify/track', {
                     params: { track_id: this.trackId }
                 });
@@ -107,7 +131,6 @@ export default {
                     throw new Error('Invalid track data structure');
                 }
 
-                // Process track data
                 this.track = {
                     ...trackResponse.data,
                     album: {
@@ -148,7 +171,6 @@ export default {
                     if (!response.ok) throw new Error('Playback start failed');
                     this.isPlaying = true;
 
-                    // Listen for track end and fetch the next track
                     this.player.addListener('player_state_changed', state => {
                         if (state && state.track_window.current_track && state.paused && state.position === 0) {
                             this.fetchTrack();
@@ -175,13 +197,11 @@ export default {
                 this.audioError = 'Failed to get Spotify token';
             }
         },
-
         formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         },
-
         async fetchValence() {
             try {
                 const response = await axios.get('http://127.0.0.1:8000/spotify/valence');
@@ -189,7 +209,7 @@ export default {
                 if (response.data?.valence !== undefined) {
                     this.previousValence = this.valence;
                     this.valence = response.data.valence;
-                    this.updateGradient(true); // Smooth transition
+                    this.updateGradient(true);
                 } else {
                     throw new Error('Failed to fetch valence');
                 }
@@ -205,7 +225,6 @@ export default {
 
             console.log(response.output_text);
         },
-
         async fetchValencePeriodically() {
             this.valenceInterval = setInterval(async () => {
                 try {
@@ -214,21 +233,20 @@ export default {
                     if (response.data?.valence !== undefined) {
                         this.previousValence = this.valence;
                         this.valence = response.data.valence;
-                        this.updateGradient(true); // Smooth transition
+                        this.updateGradient(true);
                     } else {
                         throw new Error('Failed to fetch valence');
                     }
                 } catch (error) {
                     console.error('Periodic valence fetch error:', error);
                 }
-            }, 5000); // Fetch valence every 15 seconds
+            }, 5000);
         },
-
         updateGradient() {
             const valenceColorMap = [
-                { valence: 0.0, color: ['#B8E8FC', '#D4F4FA'] }, // Light blue
-                { valence: 0.5, color: ['#D4C4F4', '#F5C6E6'] }, // Purple
-                { valence: 1.0, color: ['#FFB5B5', '#FF8A8A'] }  // Red
+                { valence: 0.0, color: ['#B8E8FC', '#D4F4FA'] },
+                { valence: 0.5, color: ['#D4C4F4', '#F5C6E6'] },
+                { valence: 1.0, color: ['#FFB5B5', '#FF8A8A'] }
             ];
 
             const interpolate = (start, end, ratio) => start + ratio * (end - start);
@@ -246,7 +264,6 @@ export default {
                 }
             }
         },
-
         interpolateColor(color1, color2, ratio) {
             const hexToRgb = (hex) => {
                 const bigint = parseInt(hex.slice(1), 16);
@@ -263,7 +280,6 @@ export default {
             const interpolatedRgb = rgb1.map((c, i) => Math.round(c + ratio * (rgb2[i] - c)));
             return rgbToHex(...interpolatedRgb);
         },
-
         addToRecentTracks(track) {
             if (track?.id && track?.name) {
                 const exists = this.recentTracks.some(t => t.id === track.id);
@@ -280,7 +296,6 @@ export default {
                 }
             }
         },
-
         async playRecentTrack(track) {
             if (track.loading) return;
             try {
@@ -291,7 +306,6 @@ export default {
                 track.loading = false;
             }
         },
-
         async initializeSpotifyPlayer() {
             if (this.player) return;
 
@@ -308,7 +322,6 @@ export default {
                         volume: 0.5
                     });
 
-                    // Error handling
                     this.player.addListener('initialization_error', ({ message }) => {
                         this.audioError = `Player error: ${message}`;
                     });
@@ -340,7 +353,6 @@ export default {
                 };
             });
         },
-
         async togglePlay() {
             if (!this.track || this.audioLoading) return;
 
@@ -356,69 +368,59 @@ export default {
                 this.audioError = 'Playback control failed';
             }
         },
-
         prevTrack() {
             this.player.previousTrack();
         },
-
         nextTrack() {
             this.player.nextTrack();
         },
-
         seekAudio(event) {
             if (this.player && this.track) {
                 const rect = event.currentTarget.getBoundingClientRect();
                 const seekPosition = (event.clientX - rect.left) / rect.width;
                 const seekTime = seekPosition * (this.track.duration_ms / 1000);
                 this.player.seek(seekTime * 1000);
-                this.currentTime = seekTime; // Update current time
+                this.currentTime = seekTime;
             }
         },
-
         updateRotation() {
             if (this.isPlaying) {
-                const delta = this.rotationSpeed / 120; // Calculate the angle increment per frame (120 FPS)
-                this.rotationAngle = (this.rotationAngle + delta) % 360; // Keep the angle within 0-360 degrees
+                const delta = this.rotationSpeed / 120;
+                this.rotationAngle = (this.rotationAngle + delta) % 360;
             }
-            setTimeout(this.updateRotation, 1000 / 120); // Schedule the next frame (120 FPS)
+            setTimeout(this.updateRotation, 1000 / 120);
         },
-
         toggleSidebar() {
             this.collapsed = !this.collapsed;
         },
-
         updateProgress() {
             if (this.isPlaying && this.track) {
-                this.currentTime += 0.5; // Increment current time by 0.5 seconds
+                this.currentTime += 0.5;
                 if (this.currentTime > this.track.duration_ms / 1000) {
-                    this.currentTime = this.track.duration_ms / 1000; // Cap at track duration
+                    this.currentTime = this.track.duration_ms / 1000;
                 }
                 this.progressPercentage = (this.currentTime / (this.track.duration_ms / 1000)) * 100;
             }
-            setTimeout(this.updateProgress, 500); // Update every 0.5 seconds
+            setTimeout(this.updateProgress, 500);
         },
     },
     mounted() {
-        this.fetchValencePeriodically(); // Start periodic valence fetching
+        this.fetchValencePeriodically();
         this.initializeSpotifyPlayer();
 
-        // Smoothly update display valence and gradient every frame
         const updateDisplayValence = () => {
             const diff = this.valence - this.displayValence;
-            this.displayValence += diff * 0.01; // Incrementally approach the actual valence by a very small amount
-            this.updateGradient(); // Update gradient based on displayValence
-            setTimeout(updateDisplayValence, 100); // Run every 0.1 seconds
+            this.displayValence += diff * 0.01;
+            this.updateGradient();
+            setTimeout(updateDisplayValence, 100);
         };
         updateDisplayValence();
 
-        // Start the rotation update loop
         this.updateRotation();
-
-        // Start the progress bar and current time update loop
         this.updateProgress();
     },
     beforeUnmount() {
-        if (this.valenceInterval) clearInterval(this.valenceInterval); // Clear interval on unmount
+        if (this.valenceInterval) clearInterval(this.valenceInterval);
         if (this.player) {
             this.player.disconnect();
         }
@@ -427,7 +429,91 @@ export default {
 </script>
 
 <style>
-/* Base Layout for 16:9 Desktop */
+@keyframes bubbleFloat {
+    0% {
+        transform: translate(-50%, -50%) scale(var(--bubble-scale, 1));
+        opacity: 0.8;
+    }
+
+    25% {
+        transform: translate(calc(-50% + var(--random-x-move)), calc(-50% - var(--random-y-move))) scale(calc(var(--bubble-scale, 1) * 1.3));
+        opacity: 1;
+    }
+
+    50% {
+        transform: translate(calc(-50% - var(--random-x-move)), calc(-50% - var(--random-y-move) * 2)) scale(calc(var(--bubble-scale, 1) * 1.5));
+        opacity: 0.9;
+    }
+
+    75% {
+        transform: translate(calc(-50% + var(--random-x-move) * 1.5), calc(-50% - var(--random-y-move) * 3)) scale(calc(var(--bubble-scale, 1) * 1.4));
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: translate(calc(-50% - var(--random-x-move) * 2), calc(-50% - var(--random-y-move) * 4)) scale(calc(var(--bubble-scale, 1) * 1.6));
+        opacity: 0;
+    }
+}
+
+.bubble {
+    position: absolute;
+    width: calc(50px * var(--bubble-size, 1));
+    height: calc(50px * var(--bubble-size, 1));
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    animation: bubbleFloat var(--bubble-animation-duration, 15s) infinite ease-in-out;
+    filter: blur(24px);
+    /* Double the shadow blur */
+    z-index: 1;
+    mix-blend-mode: screen;
+    top: calc(var(--random-start-y, 0.5) * 100%);
+    left: calc(var(--random-start-x, 0.5) * 100%);
+    transform: translate(-50%, -50%);
+}
+
+@keyframes gradientFlow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    25% {
+        background-position: 50% 75%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    75% {
+        background-position: 50% 25%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    25% {
+        transform: translate(120px, -60px) scale(0.95);
+    }
+
+    50% {
+        transform: translate(-60px, 100px) scale(1.05);
+    }
+
+    75% {
+        transform: translate(-100px, -120px) scale(0.9);
+    }
+}
+
 .spotify-desktop {
     display: grid;
     grid-template-columns: 250px 1fr;
@@ -437,12 +523,40 @@ export default {
     padding: 0;
     overflow: hidden;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    transition: background 0.5s ease;
+    animation: gradientFlow var(--animation-duration, 15s) ease-in-out infinite;
+    background-size: 400% 400%;
+    position: relative;
     transition: grid-template-columns 0.3s ease;
+    z-index: 0;
 }
 
 .spotify-desktop.collapsed {
     grid-template-columns: 0 1fr;
+}
+
+.spotify-desktop::before,
+.spotify-desktop::after {
+    content: '';
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.3;
+    z-index: -1;
+    animation: float 25s infinite ease-in-out;
+}
+
+.spotify-desktop::before {
+    background: var(--gradient-start);
+    top: 20%;
+    left: 10%;
+}
+
+.spotify-desktop::after {
+    background: var(--gradient-end);
+    bottom: 20%;
+    right: 10%;
 }
 
 html,
@@ -453,7 +567,6 @@ body {
     overflow: hidden;
 }
 
-/* Sidebar Styles */
 .sidebar {
     background: rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(15px);
@@ -523,7 +636,6 @@ body {
     color: #000;
 }
 
-/* Main Content Styles */
 .main-content {
     display: flex;
     flex-direction: column;
@@ -538,7 +650,6 @@ body {
     text-align: center;
 }
 
-/* Start Listening Button */
 .start-listening {
     display: flex;
     justify-content: center;
@@ -548,7 +659,6 @@ body {
 
 .start-button {
     background: linear-gradient(135deg, #FF5733, #FF8D1A);
-    /* Updated color */
     color: white;
     border: none;
     padding: 1rem 2rem;
@@ -565,7 +675,6 @@ body {
     box-shadow: 0 6px 20px rgba(255, 87, 51, 0.5);
 }
 
-/* Center the Now Playing Section */
 .now-playing.centered {
     margin: auto;
     text-align: center;
@@ -575,7 +684,6 @@ body {
     justify-content: center;
 }
 
-/* Valence Display */
 .valence-display {
     position: fixed;
     bottom: 20px;
@@ -589,14 +697,10 @@ body {
     z-index: 1000;
 }
 
-/* Album Art Styles */
 .album-art-container {
     width: 300px;
-    /* Keep the increased size */
     height: 300px;
-    /* Keep the increased size */
     border-radius: 50%;
-    /* Maintain rounded corners */
     overflow: hidden;
     margin: 0 auto 1rem;
     position: relative;
@@ -604,18 +708,13 @@ body {
     align-items: center;
     justify-content: center;
     background: #000;
-    /* Add a background color for contrast */
 }
 
 .album-art-container img {
     width: 100%;
-    /* Scale the image to fit the container */
     height: 100%;
-    /* Scale the image to fit the container */
     object-fit: cover;
-    /* Ensure the image covers the container without distortion */
     object-position: center;
-    /* Center the image within the container */
 }
 
 .track-title {
@@ -632,10 +731,8 @@ body {
 
 .audio-controls {
     display: flex;
-    /* Align buttons horizontally */
     justify-content: center;
     gap: 1rem;
-    /* Add spacing between buttons */
     margin-top: 1rem;
 }
 
@@ -672,7 +769,6 @@ body {
     align-items: center;
     justify-content: space-between;
     margin-top: 2rem;
-    /* Move further below */
     width: 100%;
     max-width: 600px;
 }
@@ -689,7 +785,6 @@ body {
 
 .progress {
     background: linear-gradient(135deg, #B8E8FC, #FF8A8A);
-    /* Updated gradient */
     height: 100%;
     transition: width 0.2s ease;
 }
@@ -709,22 +804,12 @@ body {
     width: 50px;
 }
 
-.main-content.centered {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    /* Center in the entire viewport */
-    text-align: center;
-}
-
 .toggle-sidebar {
     position: absolute;
     bottom: 20px;
     left: 20px;
     z-index: 1000;
     background: rgba(0, 0, 0, 0.1);
-    /* Match sidebar background */
     border: none;
     padding: 0.5rem;
     border-radius: 50%;
@@ -739,12 +824,27 @@ body {
 .toggle-sidebar i {
     font-size: 1.2rem;
     color: #888;
-    /* Subtle icon color */
 }
 
 .toggle-sidebar:hover {
     background: rgba(0, 0, 0, 0.15);
-    /* Slightly darker on hover */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.empty-content {
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    color: #888;
+    margin-bottom: 1rem;
 }
 </style>
