@@ -1,7 +1,7 @@
 <template>
-    <div class="sidebar">
-        <div class="logo">🎵 SoundScape</div>
-        <div class="recent-tracks" v-if="recentTracks.length">
+    <div class="sidebar" :class="{ collapsed }">
+        <div class="logo" v-if="!collapsed">🎵 SoundScape</div>
+        <div class="recent-tracks" v-if="recentTracks.length && !collapsed">
             <h3>RECENT TRACKS</h3>
             <div v-for="(recentTrack, index) in recentTracks" :key="index" class="recent-track"
                 :class="{ loading: recentTrack.loading }" @click="$emit('playRecentTrack', recentTrack)">
@@ -27,6 +27,38 @@
 export default {
     props: {
         recentTracks: Array,
+        collapsed: Boolean, // New prop for collapsed state
     },
 };
 </script>
+
+<style>
+.sidebar {
+    width: 250px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar.collapsed {
+    width: 0;
+    padding: 0;
+    border: none;
+}
+
+.sidebar .logo {
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.collapsed .logo {
+    opacity: 0;
+}
+
+.sidebar .recent-tracks {
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.collapsed .recent-tracks {
+    opacity: 0;
+    pointer-events: none;
+}
+</style>

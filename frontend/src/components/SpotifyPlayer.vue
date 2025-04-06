@@ -1,7 +1,10 @@
 <template>
-    <div class="spotify-desktop" :style="backgroundStyle">
-        <Sidebar :recentTracks="recentTracks" @playRecentTrack="playRecentTrack" />
-        <div class="main-content centered">
+    <div class="spotify-desktop" :class="{ collapsed }" :style="backgroundStyle">
+        <Sidebar :recentTracks="recentTracks" :collapsed="collapsed" @playRecentTrack="playRecentTrack" />
+        <button class="toggle-sidebar" @click="toggleSidebar">
+            <i :class="collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+        </button>
+        <div class="main-content" :class="{ centered: collapsed }">
             <NowPlaying v-if="track" :track="track" :isPlaying="isPlaying" :rotationAngle="rotationAngle"
                 :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
                 :audioError="audioError" :progressPercentage="progressPercentage"
@@ -55,6 +58,7 @@ export default {
             interpolatedValence: 0.5, // Smoothly transitioning valence
             displayValence: 0.5, // Smoothly transitioning display valence
             rotationAngle: 0, // Current rotation angle in degrees
+            collapsed: false, // Sidebar collapsed state
         };
     },
     computed: {
@@ -377,7 +381,11 @@ export default {
                 this.rotationAngle = (this.rotationAngle + delta) % 360; // Keep the angle within 0-360 degrees
             }
             setTimeout(this.updateRotation, 1000 / 120); // Schedule the next frame (120 FPS)
-        }
+        },
+
+        toggleSidebar() {
+            this.collapsed = !this.collapsed;
+        },
     },
     mounted() {
         this.fetchValencePeriodically(); // Start periodic valence fetching
@@ -416,6 +424,11 @@ export default {
     overflow: hidden;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition: background 0.5s ease;
+    transition: grid-template-columns 0.3s ease;
+}
+
+.spotify-desktop.collapsed {
+    grid-template-columns: 0 1fr;
 }
 
 html,
@@ -503,6 +516,12 @@ body {
     justify-content: center;
     align-items: center;
     height: 100%;
+}
+
+.main-content.centered {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
 }
 
 /* Start Listening Button */
@@ -683,5 +702,35 @@ body {
     height: 100vh;
     /* Center in the entire viewport */
     text-align: center;
+}
+
+.toggle-sidebar {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.1);
+    /* Match sidebar background */
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-sidebar i {
+    font-size: 1.2rem;
+    color: #888;
+    /* Subtle icon color */
+}
+
+.toggle-sidebar:hover {
+    background: rgba(0, 0, 0, 0.15);
+    /* Slightly darker on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 </style>
