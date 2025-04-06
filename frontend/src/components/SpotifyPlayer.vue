@@ -1,16 +1,8 @@
 <template>
     <div class="spotify-desktop" :style="backgroundStyle">
-        <!-- Sidebar with Mood Selector -->
+        <!-- Sidebar -->
         <div class="sidebar">
             <div class="logo">🎵 SoundScape</div>
-            <div class="mood-selector-container">
-                <label class="mood-label">MOOD</label>
-                <select v-model="selectedMood" class="mood-selector">
-                    <option v-for="(color, mood) in moods" :key="mood" :value="mood">
-                        {{ mood }}
-                    </option>
-                </select>
-            </div>
             <div class="recent-tracks" v-if="recentTracks.length">
                 <h3>RECENT TRACKS</h3>
                 <div v-for="(recentTrack, index) in recentTracks" :key="index" class="recent-track"
@@ -34,15 +26,9 @@
 
         <!-- Main Content Area -->
         <div class="main-content">
-            <!-- Search Bar -->
-            <div class="search-container">
-                <div class="search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input v-model="trackId" class="search-input" placeholder="Enter Spotify Track ID or Search..." />
-                    <button class="search-button" @click="fetchTrack" :disabled="audioLoading">
-                        {{ track ? 'Update' : 'Search' }}
-                    </button>
-                </div>
+            <!-- Start Listening Button -->
+            <div v-if="!track && !audioLoading" class="start-listening">
+                <button class="start-button" @click="startListening">Start Listening</button>
             </div>
 
             <!-- Now Playing Section -->
@@ -63,21 +49,17 @@
                         <h1 class="track-title">{{ track.name }}</h1>
                         <p class="artist">{{track.artists?.map(a => a.name).join(', ') || 'Unknown Artist'}}</p>
 
-                        <!-- Valence and Mood -->
-                        <p class="valence-info">Valence: {{ valence.toFixed(2) }}</p>
-                        <p class="mood-info">Mood: {{ selectedMood }}</p>
-
                         <!-- Audio Controls -->
                         <div class="audio-controls">
                             <button class="control-button prev" @click="prevTrack">
                                 <i class="fas fa-step-backward"></i>
                             </button>
                             <button class="control-button play" @click="togglePlay"
-                                :style="{ background: `linear-gradient(135deg, ${moods[selectedMood][0]}, ${moods[selectedMood][1]})` }"
+                                :style="{ background: `linear-gradient(135deg, ${gradientStart}, ${gradientEnd})` }"
                                 :disabled="audioLoading">
                                 <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
                             </button>
-                            <button class="control-button next" @click="nextTrack">
+                            <button class="control-button next" @click="fetchTrack">
                                 <i class="fas fa-step-forward"></i>
                             </button>
                         </div>
@@ -105,13 +87,17 @@
             </div>
 
             <!-- Empty State -->
-            <div v-else class="empty-state">
+            <div v-else-if="audioLoading" class="empty-state">
                 <div class="empty-content">
-                    <i class="fas fa-music empty-icon"></i>
-                    <h2>No Track Selected</h2>
-                    <p>Enter a Spotify Track ID or search for music to begin</p>
+                    <i class="fas fa-spinner fa-spin empty-icon"></i>
+                    <h2>Loading...</h2>
                 </div>
             </div>
+        </div>
+
+        <!-- Valence Display -->
+        <div class="valence-display">
+            Valence: {{ valence.toFixed(2) }}
         </div>
     </div>
 </template>
@@ -130,24 +116,20 @@ export default {
             isPlaying: false,
             progressPercentage: 0,
             currentTime: 0,
-            selectedMood: 'Calm',
             recentTracks: [],
             audioLoading: false,
             audioError: null,
-            moods: {
-                'Calm': ['#B8E8FC', '#FDF6EC'],
-                'Happy': ['#FFEEAF', '#FFB5B5'],
-                'Energetic': ['#FFBED8', '#CDE990'],
-                'Melancholy': ['#D3CEDF', '#F7DBF0'],
-                'Focus': ['#E0F9B5', '#A5DEE5'],
-                'Chill': ['#D4F4FA', '#F5E6CA']
-            }
+            gradientStart: '#B8E8FC',
+            gradientEnd: '#FDF6EC',
+            previousValence: 0.5,
+            valenceInterval: null,
         };
     },
     computed: {
         backgroundStyle() {
             return this.track ? {
-                background: `linear-gradient(135deg, ${this.moods[this.selectedMood][0]}, ${this.moods[this.selectedMood][1]})`
+                background: `linear-gradient(135deg, ${this.gradientStart}, ${this.gradientEnd})`,
+                transition: 'background 1s ease',
             } : {};
         },
         currentTimeFormatted() {
@@ -158,26 +140,11 @@ export default {
         }
     },
     methods: {
-        async getOAuthToken(callback) {
-            try {
-                const response = await axios.get('http://127.0.0.1:8000/spotify/token');
-                if (response.data.token) {
-                    callback(response.data.token);
-                } else {
-                    throw new Error(response.data.error || 'Invalid token');
-                }
-            } catch (error) {
-                console.error('Token error:', error);
-                this.audioError = 'Failed to get Spotify token';
-            }
+        async startListening() {
+            this.audioLoading = true;
+            await this.fetchTrack();
+            this.audioLoading = false;
         },
-
-        formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        },
-
         async fetchTrack() {
             try {
                 this.audioError = null;
@@ -210,7 +177,7 @@ export default {
                 };
 
                 this.valence = trackResponse.data.valence ?? 0.5;
-                this.updateMood();
+                this.updateGradient();
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
 
@@ -221,13 +188,144 @@ export default {
                 this.audioLoading = false;
             }
         },
+        async setupAudio() {
+            try {
+                if (!this.player) {
+                    await this.initializeSpotifyPlayer();
+                }
 
-        updateMood() {
-            if (this.valence < 0.3) this.selectedMood = 'Melancholy';
-            else if (this.valence < 0.5) this.selectedMood = 'Calm';
-            else if (this.valence < 0.7) this.selectedMood = 'Chill';
-            else if (this.valence < 0.9) this.selectedMood = 'Happy';
-            else this.selectedMood = 'Energetic';
+                await this.player._options.getOAuthToken(async accessToken => {
+                    const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            uris: [`spotify:track:${this.trackId}`]
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Playback start failed');
+                    this.isPlaying = true;
+
+                    // Listen for track end and fetch the next track
+                    this.player.addListener('player_state_changed', state => {
+                        if (state && state.track_window.current_track && state.paused && state.position === 0) {
+                            this.fetchTrack();
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error('Playback error:', error);
+                this.audioError = 'Playback failed - check Premium status';
+                this.isPlaying = false;
+            }
+        },
+        async getOAuthToken(callback) {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/spotify/token');
+                if (response.data.token) {
+                    callback(response.data.token);
+                } else {
+                    throw new Error(response.data.error || 'Invalid token');
+                }
+            } catch (error) {
+                console.error('Token error:', error);
+                this.audioError = 'Failed to get Spotify token';
+            }
+        },
+
+        formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        },
+
+        async fetchValence() {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/spotify/valence');
+                console.log('Valence response:', response.data);
+                if (response.data?.valence !== undefined) {
+                    this.previousValence = this.valence;
+                    this.valence = response.data.valence;
+                    this.updateGradient(true); // Smooth transition
+                } else {
+                    throw new Error('Failed to fetch valence');
+                }
+            } catch (error) {
+                console.error('Valence fetch error:', error);
+            }
+        },
+
+        async fetchValencePeriodically() {
+            this.valenceInterval = setInterval(async () => {
+                try {
+                    const response = await axios.get('http://127.0.0.1:8000/spotify/valence');
+                    console.log('Periodic valence response:', response.data);
+                    if (response.data?.valence !== undefined) {
+                        this.previousValence = this.valence;
+                        this.valence = response.data.valence;
+                        this.updateGradient(true); // Smooth transition
+                    } else {
+                        throw new Error('Failed to fetch valence');
+                    }
+                } catch (error) {
+                    console.error('Periodic valence fetch error:', error);
+                }
+            }, 5000); // Fetch valence every 5 seconds
+        },
+
+        updateGradient(smooth = false) {
+            const valenceColorMap = [
+                { valence: 0.0, color: ['#D3CEDF', '#F7DBF0'] },
+                { valence: 0.3, color: ['#B8E8FC', '#FDF6EC'] },
+                { valence: 0.5, color: ['#D4F4FA', '#F5E6CA'] },
+                { valence: 0.7, color: ['#FFEEAF', '#FFB5B5'] },
+                { valence: 0.9, color: ['#FFBED8', '#CDE990'] }
+            ];
+
+            const interpolate = (start, end, ratio) => start + ratio * (end - start);
+
+            for (let i = 0; i < valenceColorMap.length - 1; i++) {
+                const start = valenceColorMap[i];
+                const end = valenceColorMap[i + 1];
+
+                if (this.valence >= start.valence && this.valence < end.valence) {
+                    const ratio = (this.valence - start.valence) / (end.valence - start.valence);
+                    const prevRatio = (this.previousValence - start.valence) / (end.valence - start.valence);
+
+                    const startColor = smooth
+                        ? this.interpolateColor(start.color[0], end.color[0], interpolate(prevRatio, ratio, 0.5))
+                        : this.interpolateColor(start.color[0], end.color[0], ratio);
+
+                    const endColor = smooth
+                        ? this.interpolateColor(start.color[1], end.color[1], interpolate(prevRatio, ratio, 0.5))
+                        : this.interpolateColor(start.color[1], end.color[1], ratio);
+
+                    this.gradientStart = startColor;
+                    this.gradientEnd = endColor;
+                    break;
+                }
+            }
+        },
+
+        interpolateColor(color1, color2, ratio) {
+            const hexToRgb = (hex) => {
+                const bigint = parseInt(hex.slice(1), 16);
+                return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+            };
+
+            const rgbToHex = (r, g, b) => {
+                return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+            };
+
+            const rgb1 = hexToRgb(color1);
+            const rgb2 = hexToRgb(color2);
+
+            const interpolatedRgb = rgb1.map((c, i) => Math.round(c + ratio * (rgb2[i] - c)));
+            return rgbToHex(...interpolatedRgb);
         },
 
         addToRecentTracks(track) {
@@ -307,35 +405,6 @@ export default {
             });
         },
 
-        async setupAudio() {
-            try {
-                if (!this.player) {
-                    await this.initializeSpotifyPlayer();
-                }
-
-                await this.player._options.getOAuthToken(async accessToken => {
-                    const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            uris: [`spotify:track:${this.trackId}`]
-                        })
-                    });
-
-                    if (!response.ok) throw new Error('Playback start failed');
-                    this.isPlaying = true;
-                });
-
-            } catch (error) {
-                console.error('Playback error:', error);
-                this.audioError = 'Playback failed - check Premium status';
-                this.isPlaying = false;
-            }
-        },
-
         async togglePlay() {
             if (!this.track || this.audioLoading) return;
 
@@ -370,15 +439,11 @@ export default {
         }
     },
     mounted() {
+        this.fetchValencePeriodically(); // Start periodic valence fetching
         this.initializeSpotifyPlayer();
-        setInterval(() => {
-            if (this.isPlaying) {
-                this.currentTime += 1;
-                this.progressPercentage = (this.currentTime / (this.track?.duration_ms / 1000)) * 100;
-            }
-        }, 1000);
     },
     beforeUnmount() {
+        if (this.valenceInterval) clearInterval(this.valenceInterval); // Clear interval on unmount
         if (this.player) {
             this.player.disconnect();
         }
@@ -425,35 +490,6 @@ body {
     margin-bottom: 2rem;
     color: #000;
     text-shadow: none;
-}
-
-.mood-selector-container {
-    margin-bottom: 2rem;
-}
-
-.mood-label {
-    display: block;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 0.5rem;
-    color: #000;
-}
-
-.mood-selector {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.1);
-    color: #000;
-    font-size: 1rem;
-    backdrop-filter: blur(5px);
-    transition: all 0.3s ease;
-}
-
-.mood-selector:hover {
-    background: rgba(255, 255, 255, 0.2);
 }
 
 .recent-tracks {
@@ -513,51 +549,6 @@ body {
     flex-direction: column;
     padding: 1.5rem;
     overflow-y: auto;
-}
-
-.search-container {
-    margin-bottom: 2rem;
-}
-
-.search-box {
-    display: flex;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 30px;
-    padding: 0.5rem 1rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    max-width: 600px;
-}
-
-.search-icon {
-    color: #000;
-    margin-right: 0.5rem;
-}
-
-.search-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 0.8rem 0.5rem;
-    font-size: 1rem;
-    outline: none;
-    color: #000;
-}
-
-.search-button {
-    background: linear-gradient(135deg, #1DB954, #1ED760);
-    border: none;
-    color: white;
-    padding: 0.6rem 1.5rem;
-    border-radius: 20px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.search-button:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 10px rgba(29, 185, 84, 0.3);
 }
 
 /* Now Playing Section */
@@ -878,5 +869,45 @@ body {
 .audio-state.error {
     background: rgba(255, 0, 0, 0.1);
     color: #cc0000;
+}
+
+/* Valence Display */
+.valence-display {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+/* Start Listening Button */
+.start-listening {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.start-button {
+    background: linear-gradient(135deg, #1DB954, #1ED760);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 30px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+}
+
+.start-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(29, 185, 84, 0.5);
 }
 </style>

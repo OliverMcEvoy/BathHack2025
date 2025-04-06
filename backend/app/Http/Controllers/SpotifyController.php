@@ -337,4 +337,15 @@ class SpotifyController extends Controller
             return response()->json(['error' => $e->getMessage(), 'valence' => session('valence', 0.5)], 500);
         }
     }
+
+    public function getValence()
+    {
+        try {
+            $valence = Cache::get('valence', 0.5); // Default to 0.5 if not found
+            return response()->json(['valence' => $valence]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching valence:', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Failed to fetch valence'], 500);
+        }
+    }
 }

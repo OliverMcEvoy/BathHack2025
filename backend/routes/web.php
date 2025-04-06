@@ -16,6 +16,7 @@ Route::prefix('spotify')->group(function () {
     Route::get('/track', [SpotifyController::class, 'getTrack']);
     Route::get('/audio', [SpotifyController::class, 'getAudio']);
     Route::get('/rec', [SpotifyController::class, 'getReccomendationId']);
+    Route::get('/valence', [SpotifyController::class, 'getValence']);
 
     // Proxy route for Spotify API
     Route::get('/proxy', function (Request $request) {
