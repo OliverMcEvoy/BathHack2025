@@ -1,9 +1,13 @@
 <template>
-    <div class="spotify-desktop" :class="{ collapsed }" :style="backgroundStyle">
+    <div class="spotify-desktop" :class="{ collapsed, darkMode }" :style="backgroundStyle">
         <!-- Dynamic bubbles with randomized properties -->
         <div v-for="(bubble, index) in bubbles" :key="index" class="bubble" :style="bubbleStyle(bubble)"></div>
 
-        <Sidebar :recentTracks="recentTracks" :collapsed="collapsed" @playRecentTrack="playRecentTrack" />
+        <Sidebar :recentTracks="recentTracks" :collapsed="collapsed" :darkMode="darkMode"
+            @playRecentTrack="playRecentTrack" />
+        <button class="toggle-dark-mode" @click="toggleDarkMode">
+            <i :class="darkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
+        </button>
         <button class="toggle-sidebar" @click="toggleSidebar">
             <i :class="collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
         </button>
@@ -11,7 +15,7 @@
             <NowPlaying v-if="track" :track="track" :isPlaying="isPlaying" :rotationAngle="rotationAngle"
                 :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
                 :audioError="audioError" :progressPercentage="progressPercentage"
-                :currentTimeFormatted="currentTimeFormatted" :durationFormatted="durationFormatted"
+                :currentTimeFormatted="currentTimeFormatted" :durationFormatted="durationFormatted" :darkMode="darkMode"
                 @togglePlay="togglePlay" @prevTrack="prevTrack" @nextTrack="fetchTrack" @seekAudio="seekAudio" />
             <div v-else-if="!track && !audioLoading" class="start-listening">
                 <button class="start-button" @click="startListening">Start Listening</button>
@@ -23,7 +27,7 @@
                 </div>
             </div>
         </div>
-        <ValenceDisplay :valence="valence" />
+        <ValenceDisplay :valence="valence" :darkMode="darkMode" />
     </div>
 </template>
 
@@ -63,14 +67,15 @@ export default {
             rotationAngle: 0,
             collapsed: false,
             bubbles: Array(20).fill().map(() => ({
-                startX: Math.random(),
-                startY: Math.random(),
+                startX: Math.random(), // Uniformly distributed between 0 and 1
+                startY: Math.random(), // Uniformly distributed between 0 and 1
                 xMove: 30 + Math.random() * 100,
                 yMove: 50 + Math.random() * 150,
                 size: 0.8 + Math.random() * 1.2,
                 scale: 0.8 + Math.random() * 0.8,
                 animationDuration: 10 + Math.random() * 20
             })),
+            darkMode: false, // New state for dark mode
         };
     },
     computed: {
@@ -243,11 +248,17 @@ export default {
             }, 5000);
         },
         updateGradient() {
-            const valenceColorMap = [
-                { valence: 0.0, color: ['#B8E8FC', '#D4F4FA'] },
-                { valence: 0.5, color: ['#D4C4F4', '#F5C6E6'] },
-                { valence: 1.0, color: ['#FFB5B5', '#FF8A8A'] }
-            ];
+            const valenceColorMap = this.darkMode
+                ? [
+                    { valence: 0.0, color: ['#2B2B2B', '#3E3E3E'] },
+                    { valence: 0.5, color: ['#4E4E8A', '#6A6AB3'] },
+                    { valence: 1.0, color: ['#8A4E8A', '#B36AB3'] }
+                ]
+                : [
+                    { valence: 0.0, color: ['#B8E8FC', '#D4F4FA'] },
+                    { valence: 0.5, color: ['#D4C4F4', '#F5C6E6'] },
+                    { valence: 1.0, color: ['#FFB5B5', '#FF8A8A'] }
+                ];
 
             const interpolate = (start, end, ratio) => start + ratio * (end - start);
 
@@ -393,6 +404,9 @@ export default {
         toggleSidebar() {
             this.collapsed = !this.collapsed;
         },
+        toggleDarkMode() {
+            this.darkMode = !this.darkMode;
+        },
         updateProgress() {
             if (this.isPlaying && this.track) {
                 this.currentTime += 0.5;
@@ -528,6 +542,8 @@ export default {
     position: relative;
     transition: grid-template-columns 0.3s ease;
     z-index: 0;
+    color: black;
+    /* Default text color for normal mode */
 }
 
 .spotify-desktop.collapsed {
@@ -557,6 +573,23 @@ export default {
     background: var(--gradient-end);
     bottom: 20%;
     right: 10%;
+}
+
+.spotify-desktop.darkMode {
+    background-color: #121212;
+    /* Darker black background */
+    color: #A78BFA;
+    /* Purple text color for dark mode */
+}
+
+.spotify-desktop.darkMode .sidebar {
+    background: #1A1A1A;
+    /* Darker sidebar background */
+}
+
+.spotify-desktop.darkMode .main-content {
+    color: #C0C0C0;
+    /* Light gray text */
 }
 
 html,
@@ -792,6 +825,12 @@ body {
 .progress-time {
     font-size: 0.9rem;
     color: black;
+    /* Default text color for normal mode */
+}
+
+.spotify-desktop.darkMode .progress-time {
+    color: #A78BFA;
+    /* Purple text color for dark mode */
 }
 
 .progress-time.left {
@@ -823,10 +862,45 @@ body {
 
 .toggle-sidebar i {
     font-size: 1.2rem;
-    color: #888;
+    color: black;
+    /* Default icon color for normal mode */
+}
+
+.spotify-desktop.darkMode .toggle-dark-mode i,
+.spotify-desktop.darkMode .toggle-sidebar i {
+    color: #A78BFA;
+    /* Purple icon color for dark mode */
 }
 
 .toggle-sidebar:hover {
+    background: rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-dark-mode {
+    position: absolute;
+    bottom: 70px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.1);
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-dark-mode i {
+    font-size: 1.2rem;
+    color: black;
+    /* Default icon color for normal mode */
+}
+
+.toggle-dark-mode:hover {
     background: rgba(0, 0, 0, 0.15);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }

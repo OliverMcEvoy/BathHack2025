@@ -1,5 +1,5 @@
 <template>
-    <div class="now-playing">
+    <div class="now-playing" :class="{ darkMode }">
         <div class="track-column">
             <div class="track-info">
                 <div class="album-art-container" :class="{ rotating: isPlaying }"
@@ -51,6 +51,7 @@ export default {
         progressPercentage: Number,
         currentTimeFormatted: String,
         durationFormatted: String,
+        darkMode: Boolean, // New prop for dark mode
     },
 };
 </script>
@@ -68,7 +69,8 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #000;
+    background: #121212;
+    /* Darker black background */
 }
 
 .album-art-container img {
@@ -76,5 +78,36 @@ export default {
     height: 100%;
     object-fit: cover;
     object-position: center;
+}
+
+.track-title {
+    color: #A78BFA;
+    /* Purple-gray for track title */
+}
+
+.artist {
+    color: #C0C0C0;
+    /* Light gray for artist names */
+}
+
+.audio-state.error {
+    color: #FF4C4C;
+    /* Bright red for errors */
+}
+
+.track-title,
+.artist,
+.progress-time,
+.audio-state.error i {
+    color: black;
+    /* Default text and icon color for normal mode */
+}
+
+.now-playing.darkMode .track-title,
+.now-playing.darkMode .artist,
+.now-playing.darkMode .progress-time,
+.now-playing.darkMode .audio-state.error i {
+    color: #A78BFA;
+    /* Purple text and icon color for dark mode */
 }
 </style>

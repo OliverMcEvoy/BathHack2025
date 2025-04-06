@@ -1,5 +1,5 @@
 <template>
-    <div class="sidebar" :class="{ collapsed }">
+    <div class="sidebar" :class="{ collapsed, darkMode }">
         <div class="logo" v-if="!collapsed">🎵 SoundScape</div>
         <div class="recent-tracks" v-if="recentTracks.length && !collapsed">
             <h3>RECENT TRACKS</h3>
@@ -27,7 +27,8 @@
 export default {
     props: {
         recentTracks: Array,
-        collapsed: Boolean, // New prop for collapsed state
+        collapsed: Boolean,
+        darkMode: Boolean, // New prop for dark mode
     },
 };
 </script>
@@ -37,15 +38,25 @@ export default {
     width: 250px;
     transition: all 0.3s ease;
     overflow: hidden;
+    background: #1A1A1A;
+    /* Darker background */
+    color: black;
+    /* Default text color for normal mode */
 }
 
 .sidebar.collapsed {
     width: 0;
     padding: 0;
     border: none;
+    background: #1A1A1A;
+    color: black;
+    /* Default text color for collapsed mode in normal mode */
 }
 
 .sidebar .logo {
+    color: black;
+    /* Default text color for normal mode */
+    font-weight: bold;
     transition: opacity 0.3s ease;
 }
 
@@ -57,8 +68,46 @@ export default {
     transition: opacity 0.3s ease;
 }
 
+.sidebar .recent-tracks h3 {
+    color: black;
+    /* Default text color for normal mode */
+}
+
 .sidebar.collapsed .recent-tracks {
     opacity: 0;
     pointer-events: none;
+}
+
+.sidebar .recent-track:hover {
+    background: rgba(0, 0, 0, 0.1);
+    /* Adjust hover effect for normal mode */
+}
+
+.sidebar .recent-title {
+    color: black;
+    /* Default text color for normal mode */
+}
+
+.sidebar .recent-artist {
+    color: black;
+    /* Default text color for normal mode */
+}
+
+.sidebar.darkMode {
+    background: #1A1A1A;
+    color: #A78BFA;
+}
+
+.sidebar.darkMode .logo,
+.sidebar.darkMode .recent-tracks h3,
+.sidebar.darkMode .recent-title,
+.sidebar.darkMode .recent-artist {
+    color: #A78BFA;
+    /* Purple text color for dark mode */
+}
+
+.sidebar.darkMode .recent-track:hover {
+    background: rgba(167, 139, 250, 0.2);
+    /* Purple-gray hover effect for dark mode */
 }
 </style>
