@@ -144,7 +144,7 @@ export default {
         },
         rotationSpeed() {
             // Map valence (0.0 to 1.0) to rotation speed (degrees per second)
-            return 30 + (this.displayValence * 50); // Speed ranges from 30°/s to 300°/s
+            return 10 + (this.displayValence * 30); // Speed ranges from 30°/s to 300°/s
         }
     },
     methods: {
@@ -630,19 +630,31 @@ body {
 
 /* Album Art Styles */
 .album-art-container {
-    width: 200px;
-    /* Increased size */
-    height: 200px;
-    /* Increased size */
+    width: 300px;
+    /* Keep the increased size */
+    height: 300px;
+    /* Keep the increased size */
     border-radius: 50%;
+    /* Maintain rounded corners */
     overflow: hidden;
     margin: 0 auto 1rem;
     position: relative;
-    /* Removed CSS animation, rotation is now handled manually */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    /* Add a background color for contrast */
 }
 
-.album-art-container.rotating {
-    animation-play-state: running;
+.album-art-container img {
+    width: 100%;
+    /* Scale the image to fit the container */
+    height: 100%;
+    /* Scale the image to fit the container */
+    object-fit: cover;
+    /* Ensure the image covers the container without distortion */
+    object-position: center;
+    /* Center the image within the container */
 }
 
 .track-title {
