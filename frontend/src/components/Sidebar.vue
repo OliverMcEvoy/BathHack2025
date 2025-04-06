@@ -28,7 +28,7 @@ export default {
     props: {
         recentTracks: Array,
         collapsed: Boolean,
-        darkMode: Boolean, // New prop for dark mode
+        darkMode: Boolean,
     },
 };
 </script>

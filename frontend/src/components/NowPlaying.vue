@@ -14,7 +14,7 @@
                 <p class="artist">{{track.artists?.map(a => a.name).join(', ') || 'Unknown Artist'}}</p>
                 <AudioControls :isPlaying="isPlaying" :gradientStart="gradientStart" :gradientEnd="gradientEnd"
                     :audioLoading="audioLoading" @togglePlay="$emit('togglePlay')" @prevTrack="$emit('prevTrack')"
-                    @nextTrack="$emit('nextTrack')" />
+                    @nextTrack="nextTrack" />
                 <div class="progress-container">
                     <div class="progress-time left">{{ currentTimeFormatted }}</div>
                     <div class="progress-bar" @click="$emit('seekAudio', $event)">
@@ -52,6 +52,11 @@ export default {
         currentTimeFormatted: String,
         durationFormatted: String,
         darkMode: Boolean, // New prop for dark mode
+    },
+    methods: {
+        nextTrack() {
+            this.$emit('nextTrack');
+        },
     },
 };
 </script>

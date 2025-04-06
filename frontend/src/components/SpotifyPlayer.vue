@@ -19,7 +19,7 @@
                 :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
                 :audioError="audioError" :progressPercentage="progressPercentage"
                 :currentTimeFormatted="currentTimeFormatted" :durationFormatted="durationFormatted" :darkMode="darkMode"
-                @togglePlay="togglePlay" @prevTrack="prevTrack" @nextTrack="fetchTrack" @seekAudio="seekAudio" />
+                @togglePlay="togglePlay" @prevTrack="prevTrack" @nextTrack="nextTrack" @seekAudio="seekAudio" />
             <div v-else-if="!track && !audioLoading" class="start-listening">
                 <button class="start-button" @click="startListening">Start Listening</button>
             </div>
@@ -79,7 +79,6 @@ export default {
                 animationDuration: 20 + Math.random() * 40 // Slower animation duration
             })),
             darkMode: false, // New state for dark mode
-            nextTrackData: null, // Preloaded next track data
         };
     },
     computed: {
@@ -87,11 +86,10 @@ export default {
             return this.track ? {
                 background: `linear-gradient(135deg, ${this.gradientStart}, ${this.gradientEnd}, ${this.gradientStart})`,
                 backgroundSize: '400% 400%',
-                '--animation-duration': `${30 - (this.displayValence * 25)}s`,
+                '--animation-duration': '30s', // Fixed animation duration
                 '--gradient-start': this.gradientStart,
                 '--gradient-end': this.gradientEnd,
                 transition: this.backgroundAnimation ? 'background 1.5s ease' : 'none',
-                '--valence-speed': (1 + this.displayValence).toFixed(2),
             } : {};
         },
         currentTimeFormatted() {
@@ -425,9 +423,7 @@ export default {
                 this.updateGradient();
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
-                this.preloadNextTrack(); // Preload the next track again
-            } else {
-                await this.fetchTrack(); // Fallback if no preloaded track
+                this.preloadNextTrack(); // Preload the subsequent track
             }
         },
         seekAudio(event) {
@@ -481,6 +477,7 @@ export default {
 
         this.updateRotation();
         this.updateProgress();
+        this.preloadNextTrack(); // Ensure the first next track is preloaded
     },
     beforeUnmount() {
         if (this.valenceInterval) clearInterval(this.valenceInterval);
@@ -533,6 +530,17 @@ export default {
     top: calc(var(--random-start-y, 0.5) * 100%);
     left: calc(var(--random-start-x, 0.5) * 100%);
     transform: translate(-50%, -50%);
+    opacity: 0.5;
+    /* Default opacity */
+    filter: blur(24px);
+    /* Default blur */
+}
+
+.spotify-desktop.darkMode .bubble {
+    opacity: 0.1;
+    /* Further reduced opacity in dark mode */
+    filter: blur(8px);
+    /* Further reduced blur in dark mode */
 }
 
 @keyframes gradientFlow {
