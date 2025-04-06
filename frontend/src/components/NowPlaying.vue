@@ -23,7 +23,7 @@
                     <div class="progress-time right">{{ durationFormatted }}</div>
                 </div>
                 <div v-if="audioLoading" class="audio-state">
-                    <i class="fas fa-spinner fa-spin"></i> Loading audio...
+                    <i class="fas fa-spinner fa-spin"></i>
                 </div>
                 <div v-if="audioError" class="audio-state error">
                     <i class="fas fa-exclamation-triangle"></i> {{ audioError }}

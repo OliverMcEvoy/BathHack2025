@@ -11,6 +11,9 @@
         <button class="toggle-sidebar" @click="toggleSidebar">
             <i :class="collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
         </button>
+        <button class="logout-icon" @click="logout">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
         <div class="main-content" :class="{ centered: collapsed }">
             <NowPlaying v-if="track" :track="track" :isPlaying="isPlaying" :rotationAngle="rotationAngle"
                 :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
@@ -69,13 +72,14 @@ export default {
             bubbles: Array(20).fill().map(() => ({
                 startX: Math.random(), // Uniformly distributed between 0 and 1
                 startY: Math.random(), // Uniformly distributed between 0 and 1
-                xMove: 30 + Math.random() * 100,
-                yMove: 50 + Math.random() * 150,
+                xMove: 15 + Math.random() * 50, // Slower movement, minimum 15
+                yMove: 25 + Math.random() * 75, // Slower movement, minimum 25
                 size: 0.8 + Math.random() * 1.2,
                 scale: 0.8 + Math.random() * 0.8,
-                animationDuration: 10 + Math.random() * 20
+                animationDuration: 20 + Math.random() * 40 // Slower animation duration
             })),
             darkMode: false, // New state for dark mode
+            nextTrackData: null, // Preloaded next track data
         };
     },
     computed: {
@@ -97,7 +101,7 @@ export default {
             return this.formatTime(this.track?.duration_ms / 1000 || 0);
         },
         rotationSpeed() {
-            return 10 + (this.displayValence * 30);
+            return Math.max(5, 5 + (this.displayValence * 15)); // Slower spin, minimum 5
         }
     },
     methods: {
@@ -109,7 +113,7 @@ export default {
                 '--random-y-move': `${bubble.yMove}px`,
                 '--bubble-size': bubble.size,
                 '--bubble-scale': bubble.scale,
-                '--bubble-animation-duration': `${bubble.animationDuration / (1 + this.displayValence)}s`
+                '--bubble-animation-duration': `${bubble.animationDuration}s` // Removed valence dependence
             };
         },
         async startListening() {
@@ -150,9 +154,40 @@ export default {
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
 
+                // Preload the next track
+                this.preloadNextTrack();
+
             } catch (error) {
                 console.error('Fetch error:', error);
                 this.audioError = error.message || 'Failed to load track';
+            }
+        },
+        async preloadNextTrack() {
+            try {
+                const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
+                if (!recResponse.data?.recommendation) {
+                    throw new Error('No track recommendation received');
+                }
+                const nextTrackId = recResponse.data.recommendation;
+
+                const trackResponse = await axios.get('http://127.0.0.1:8000/spotify/track', {
+                    params: { track_id: nextTrackId }
+                });
+
+                if (!trackResponse.data?.id || !trackResponse.data?.artists) {
+                    throw new Error('Invalid track data structure');
+                }
+
+                this.nextTrackData = {
+                    ...trackResponse.data,
+                    album: {
+                        ...trackResponse.data.album,
+                        images: trackResponse.data.album?.images || []
+                    },
+                    artists: trackResponse.data.artists || []
+                };
+            } catch (error) {
+                console.error('Preload next track error:', error);
             }
         },
         async setupAudio() {
@@ -382,8 +417,18 @@ export default {
         prevTrack() {
             this.player.previousTrack();
         },
-        nextTrack() {
-            this.player.nextTrack();
+        async nextTrack() {
+            if (this.nextTrackData) {
+                this.track = this.nextTrackData;
+                this.trackId = this.track.id;
+                this.valence = this.track.valence ?? 0.5;
+                this.updateGradient();
+                this.addToRecentTracks(this.track);
+                await this.setupAudio();
+                this.preloadNextTrack(); // Preload the next track again
+            } else {
+                await this.fetchTrack(); // Fallback if no preloaded track
+            }
         },
         seekAudio(event) {
             if (this.player && this.track) {
@@ -416,6 +461,10 @@ export default {
                 this.progressPercentage = (this.currentTime / (this.track.duration_ms / 1000)) * 100;
             }
             setTimeout(this.updateProgress, 500);
+        },
+        logout() {
+            // Implement logout logic here
+            console.log('User logged out');
         },
     },
     mounted() {
@@ -691,19 +740,43 @@ body {
 }
 
 .start-button {
-    background: linear-gradient(135deg, #FF5733, #FF8D1A);
+    background: linear-gradient(135deg, #4E4E8A, #6A6AB3);
+    /* Updated to match theme */
     color: white;
     border: none;
-    padding: 1rem 2rem;
+    padding: 1.5rem 3rem;
+    /* Increased padding for larger clickable area */
     border-radius: 30px;
     font-size: 1.5rem;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(255, 87, 51, 0.3);
+    box-shadow: 0 4px 15px rgba(78, 78, 138, 0.5);
+    /* Updated shadow color */
 }
 
 .start-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(78, 78, 138, 0.7);
+    /* Updated hover shadow color */
+}
+
+.logout-button {
+    background: linear-gradient(135deg, #FF5733, #FF8A8A);
+    /* Logout button styling */
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 87, 51, 0.3);
+    margin-top: 1rem;
+}
+
+.logout-button:hover {
     transform: scale(1.05);
     box-shadow: 0 6px 20px rgba(255, 87, 51, 0.5);
 }
@@ -903,6 +976,34 @@ body {
 .toggle-dark-mode:hover {
     background: rgba(0, 0, 0, 0.15);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.logout-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: rgba(0, 0, 0, 0.5);
+    /* Subtle color */
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.logout-icon:hover {
+    color: rgba(0, 0, 0, 0.8);
+    /* Slightly more visible on hover */
+}
+
+.spotify-desktop.darkMode .logout-icon {
+    color: rgba(255, 255, 255, 0.5);
+    /* Subtle color for dark mode */
+}
+
+.spotify-desktop.darkMode .logout-icon:hover {
+    color: rgba(255, 255, 255, 0.8);
+    /* Slightly more visible on hover in dark mode */
 }
 
 .empty-state {

@@ -1,6 +1,6 @@
 <template>
     <div class="sidebar" :class="{ collapsed, darkMode }">
-        <div class="logo" v-if="!collapsed">🎵 SoundScape</div>
+        <div class="logo" v-if="!collapsed">Benjamin Hayward</div>
         <div class="recent-tracks" v-if="recentTracks.length && !collapsed">
             <h3>RECENT TRACKS</h3>
             <div v-for="(recentTrack, index) in recentTracks" :key="index" class="recent-track"
@@ -9,7 +9,7 @@
                     <img v-if="recentTrack.album?.images?.length >= 3" :src="recentTrack.album.images[2].url"
                         class="recent-art" />
                     <div v-else class="recent-art-placeholder">
-                        <i class="fas fa-music"></i>
+                        <!-- Removed music icon -->
                     </div>
                 </div>
                 <div class="recent-info">
@@ -84,8 +84,15 @@ export default {
 }
 
 .sidebar .recent-title {
+    font-size: 0.9rem;
     color: black;
-    /* Default text color for normal mode */
+    margin-bottom: 0.2rem;
+    white-space: normal;
+    /* Allow text to wrap */
+    overflow: visible;
+    /* Ensure wrapped text is visible */
+    text-overflow: unset;
+    /* Disable ellipsis for wrapping */
 }
 
 .sidebar .recent-artist {
