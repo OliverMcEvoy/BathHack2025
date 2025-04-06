@@ -146,12 +146,12 @@ while True:
 
         if recent_heart_rate is None:
             recent_heart_rate = 80
-            
+
         with open(CSV_FILENAME, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([datetime.now().isoformat(), average, recent_heart_rate])
 
-    cv2.imshow("ResEmoteNet", frame)
+    cv2.imshow("ResEmoteNet", cv2.resize(frame, (1300, 800)))
     
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
