@@ -179,42 +179,106 @@ class SpotifyController extends Controller
         }
     }
 
-    public function getReccomendationId()
+    public function getTopTracksTitles()
     {
         try {
             $tokenData = $this->getAccessToken();
-            $accessToken = $tokenData['access_token'];
-
-            // Get user's top 5 artists
-            $topArtists = $this->getTop5Artists()['items'] ?? [];
-            $artistIds = collect($topArtists)->pluck('id')->take(5)->toArray();
-
-            // Get top 5 tracks from each artist
-            $allTracks = collect($artistIds)
-                ->flatMap(function ($artistId) use ($accessToken) {
-                    return $this->getArtistTopTracks($artistId, $accessToken);
-                })
-                ->filter()
-                ->shuffle()
-                ->toArray();
-
-            if (empty($allTracks)) {
-                throw new \Exception('No tracks found from top artists');
+            if (!isset($tokenData['access_token'])) {
+                throw new \Exception('Invalid access token');
             }
-
-            // Select random track from the pool
-            $randomTrack = $allTracks[array_rand($allTracks)];
-
-            return response()->json([
-                'recommendation' => $randomTrack['id'],
-                'track_name' => $randomTrack['name'],
-                'artist' => $randomTrack['artists'][0]['name']
-            ]);
+    
+            $accessToken = $tokenData['access_token'];
+            $trackResponse = Http::withToken($accessToken)
+                ->get("https://api.spotify.com/v1/me/top/tracks?limit=3");
+    
+            if (!$trackResponse->successful()) {
+                Log::error('Track top name fetch error: ' . $trackResponse->body());
+                throw new \Exception('Failed to fetch top tracks');
+            }
+    
+            $data = $trackResponse->json();
+            $songsWithAnalysis = [];
+    
+            $gpt = new GPTController(); 
+    
+            $csvPath = storage_path('app/song_analysis.csv');
+            $fileExists = file_exists($csvPath);
+            $handle = fopen($csvPath, 'a');
+    
+            if (!$fileExists) {
+                fputcsv($handle, ['ID', 'Song', 'Tempo', 'Valence']);
+            }
+    
+            foreach ($data['items'] as $track) {
+                $trackName = $track['name'];
+                $artistName = $track['artists'][0]['name'];
+                $trackId = $track['id'];
+                $formattedSong = $trackName . ' by ' . $artistName;
+    
+                // Call GPT analyze
+                $analysis = $gpt->analyzeSongData($trackId, $formattedSong);
+    
+                if ($analysis) {
+                    // Save to CSV
+                    fputcsv($handle, [$trackId, $formattedSong, $analysis['tempo'], $analysis['valence']]);
+    
+                    $songsWithAnalysis[] = [
+                        'id' => $trackId,
+                        'song' => $formattedSong,
+                        'tempo' => $analysis['tempo'],
+                        'valence' => $analysis['valence'],
+                    ];
+                }
+            }
+    
+            fclose($handle);
+    
+            return response()->json($songsWithAnalysis);
+    
         } catch (\Exception $e) {
-            Log::error('Recommendation error: ' . $e->getMessage());
+            Log::error('Track top error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    
+    
+
+    // public function getReccomendationId()
+    // {
+    //     try {
+    //         $tokenData = $this->getAccessToken();
+    //         $accessToken = $tokenData['access_token'];
+
+    //         // Get user's top 5 artists
+    //         $topArtists = $this->getTop5Artists()['items'] ?? [];
+    //         $artistIds = collect($topArtists)->pluck('id')->take(5)->toArray();
+
+    //         // Get top 5 tracks from each artist
+    //         $allTracks = collect($artistIds)
+    //             ->flatMap(function ($artistId) use ($accessToken) {
+    //                 return $this->getArtistTopTracks($artistId, $accessToken);
+    //             })
+    //             ->filter()
+    //             ->shuffle()
+    //             ->toArray();
+
+    //         if (empty($allTracks)) {
+    //             throw new \Exception('No tracks found from top artists');
+    //         }
+
+    //         // Select random track from the pool
+    //         $randomTrack = $allTracks[array_rand($allTracks)];
+
+    //         return response()->json([
+    //             'recommendation' => $randomTrack['id'],
+    //             'track_name' => $randomTrack['name'],
+    //             'artist' => $randomTrack['artists'][0]['name']
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('Recommendation error: ' . $e->getMessage());
+    //         return response()->json(['error' => $e->getMessage()], 500);
+    //     }
+    // }
 
     private function getArtistTopTracks($artistId, $accessToken)
     {
