@@ -2,8 +2,7 @@
     <div class="now-playing" :class="{ darkMode }">
         <div class="track-column">
             <div class="track-info">
-                <div class="album-art-container" :class="{ rotating: isPlaying }"
-                    :style="{ transform: `rotate(${rotationAngle}deg)` }">
+                <div class="album-art-container">
                     <img v-if="track.album?.images?.length" :src="track.album.images[0].url" :alt="track.name"
                         class="album-art" />
                     <div v-else class="album-art-placeholder">
@@ -64,10 +63,9 @@ export default {
 <style scoped>
 .album-art-container {
     width: 350px;
-    /* Increased size */
     height: 350px;
-    /* Increased size */
-    border-radius: 50%;
+    border-radius: 20px;
+    /* Rounded edges */
     overflow: hidden;
     margin: 0 auto 1rem;
     position: relative;
@@ -75,7 +73,6 @@ export default {
     align-items: center;
     justify-content: center;
     background: #121212;
-    /* Darker black background */
 }
 
 .album-art-container img {

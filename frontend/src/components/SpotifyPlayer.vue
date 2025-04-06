@@ -26,7 +26,6 @@
             <div v-else-if="audioLoading" class="empty-state">
                 <div class="empty-content">
                     <i class="fas fa-spinner fa-spin empty-icon"></i>
-                    <h2>Loading...</h2>
                 </div>
             </div>
         </div>
@@ -537,10 +536,10 @@ export default {
 }
 
 .spotify-desktop.darkMode .bubble {
-    opacity: 0.1;
+    opacity: 0.8;
     /* Further reduced opacity in dark mode */
-    filter: blur(8px);
-    /* Further reduced blur in dark mode */
+    filter: blur(48px);
+    /* Reduced blur in dark mode */
 }
 
 @keyframes gradientFlow {
@@ -548,16 +547,64 @@ export default {
         background-position: 0% 50%;
     }
 
+    6.25% {
+        background-position: 12.5% 55%;
+    }
+
+    12.5% {
+        background-position: 25% 60%;
+    }
+
+    18.75% {
+        background-position: 37.5% 65%;
+    }
+
     25% {
         background-position: 50% 75%;
+    }
+
+    31.25% {
+        background-position: 62.5% 70%;
+    }
+
+    37.5% {
+        background-position: 75% 60%;
+    }
+
+    43.75% {
+        background-position: 87.5% 55%;
     }
 
     50% {
         background-position: 100% 50%;
     }
 
+    56.25% {
+        background-position: 87.5% 45%;
+    }
+
+    62.5% {
+        background-position: 75% 40%;
+    }
+
+    68.75% {
+        background-position: 62.5% 35%;
+    }
+
     75% {
         background-position: 50% 25%;
+    }
+
+    81.25% {
+        background-position: 37.5% 30%;
+    }
+
+    87.5% {
+        background-position: 25% 40%;
+    }
+
+    93.75% {
+        background-position: 12.5% 45%;
     }
 
     100% {
