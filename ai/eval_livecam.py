@@ -127,7 +127,7 @@ def calculate_valence(scores):
 
 counter = 0
 emotion_frequency = 10
-heart_frequency = 100
+heart_frequency = 500
 beta = 10
 valences = []
 access_token, refresh_token = load_tokens()
@@ -159,6 +159,8 @@ while True:
             print("Most recent heart rate:", recent_heart_rate)
 
         else:
+            recent_heart_rate = None
+            """
             print("Access token expired or invalid. Attempting to refresh.")
             new_access_token = refresh_access_token(refresh_token)
             
@@ -166,6 +168,7 @@ while True:
                 recent_heart_rate = get_recent_heart_rate(new_access_token)
                 if recent_heart_rate:
                     print("Most recent heart rate:", recent_heart_rate)
+            """
     
     counter = counter + 1
 

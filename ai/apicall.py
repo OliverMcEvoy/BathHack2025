@@ -130,8 +130,6 @@ def monitor_csv():
                 
                 current_valence, current_tempo, timestamp = process_csv_copy()
                 
-                if current_tempo is None:
-                    current_tempo = 80
 
                 if current_valence is None:
                     print("No valid data found, waiting...")
@@ -143,6 +141,9 @@ def monitor_csv():
                     print(f"Read valence value: {current_valence} (timestamp: {timestamp})")
                     print(f"New valence detected (previous: {last_valence}, new: {current_valence})")
                     
+                    if current_tempo == "":
+                        current_tempo = 80
+
                     current_tempo = int(current_tempo)
                     print(f"Read tempo value: {current_tempo} (timestamp: {timestamp})")
                     print(f"New tempo detected (previous: {last_tempo}, new: {current_tempo})")
