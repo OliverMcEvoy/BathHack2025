@@ -414,10 +414,11 @@ class SpotifyController extends Controller
     {
         try {
             $valence = Cache::get('valence', 0.5); // Default to 0.5 if not found
-            return response()->json(['valence' => $valence]);
+            $tempo = Cache::get('tempo', 120); // Default to 120 BPM if not found
+            return response()->json(['valence' => $valence, 'tempo' => $tempo]);
         } catch (\Exception $e) {
-            Log::error('Error fetching valence:', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Failed to fetch valence'], 500);
+            Log::error('Error fetching valence and tempo:', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Failed to fetch valence and tempo'], 500);
         }
     }
 

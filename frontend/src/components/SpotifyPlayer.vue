@@ -32,7 +32,7 @@
                 </div>
             </div>
         </div>
-        <ValenceDisplay :valence="valence" :darkMode="darkMode" />
+        <ValenceDisplay :valence="valence" :tempo="tempo" :darkMode="darkMode" />
     </div>
 </template>
 
@@ -54,6 +54,7 @@ export default {
             trackId: '',
             track: null,
             valence: 0.5,
+            tempo: 120, // New state for tempo
             player: null,
             deviceId: null,
             isPlaying: false,
@@ -276,38 +277,23 @@ export default {
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         },
-        async fetchValence() {
+        async fetchValenceAndTempo() {
             try {
                 const response = await axios.get('http://127.0.0.1:8000/spotify/valence');
-                console.log('Valence response:', response.data);
-                if (response.data?.valence !== undefined) {
-                    this.previousValence = this.valence;
+                console.log('Valence and Tempo response:', response.data);
+                if (response.data?.valence !== undefined && response.data?.tempo !== undefined) {
                     this.valence = response.data.valence;
-                    this.updateGradient(true);
+                    this.tempo = response.data.tempo; // Store tempo
                 } else {
-                    throw new Error('Failed to fetch valence');
+                    throw new Error('Failed to fetch valence and tempo');
                 }
             } catch (error) {
-                console.error('Valence fetch error:', error);
+                console.error('Valence and Tempo fetch error:', error);
             }
-
-
         },
         async fetchValencePeriodically() {
             this.valenceInterval = setInterval(async () => {
-                try {
-                    const response = await axios.get('http://127.0.0.1:8000/spotify/valence');
-                    console.log('Periodic valence response:', response.data);
-                    if (response.data?.valence !== undefined) {
-                        this.previousValence = this.valence;
-                        this.valence = response.data.valence;
-                        this.updateGradient(true);
-                    } else {
-                        throw new Error('Failed to fetch valence');
-                    }
-                } catch (error) {
-                    console.error('Periodic valence fetch error:', error);
-                }
+                await this.fetchValenceAndTempo(); // Fetch both valence and tempo periodically
             }, 500);
         },
         updateGradient() {

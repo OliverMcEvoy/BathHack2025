@@ -18,11 +18,15 @@ class ExternalApiController extends Controller
         }
 
         $valence = $requestBody['valence'] ?? 0.5; // Extract valence, default to 0.5 if not provided
-
+        $tempo = $requestBody['tempo'] ?? 120; // Extract tempo, default to 120 if not provided
 
         Cache::put('valence', $valence, now()->addMinutes(60)); // Store valence in cache for 60 minutes
-        // Log::info('Valence value stored in cache', ['valence' => $valence]); // Log the valence
+        Cache::put('tempo', $tempo, now()->addMinutes(60)); // Store tempo in cache for 60 minutes
 
-        return response()->json(['message' => 'API call logged successfully', 'valence' => $valence]);
+        return response()->json([
+            'message' => 'API call logged successfully',
+            'valence' => $valence, // Include valence in the response
+            'tempo' => $tempo // Include tempo in the response
+        ]);
     }
 }

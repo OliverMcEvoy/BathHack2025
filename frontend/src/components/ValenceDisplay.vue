@@ -1,6 +1,7 @@
 <template>
     <div class="valence-display" :class="{ darkMode }">
-        Valence: {{ valence.toFixed(2) }}
+        <div>Valence: {{ valence.toFixed(2) }}</div>
+        <div>Tempo: {{ tempo }}</div>
     </div>
 </template>
 
@@ -8,7 +9,8 @@
 export default {
     props: {
         valence: Number,
-        darkMode: Boolean, // New prop for dark mode
+        tempo: Number,
+        darkMode: Boolean, // Existing prop
     },
 };
 </script>
@@ -17,14 +19,19 @@ export default {
 .valence-display {
     background: rgba(18, 18, 18, 0.9);
     /* Darker black background */
-    color: black;
-    /* Default text color for normal mode */
+    color: white;
+    /* Changed text color to white */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-    /* Slightly darker shadow */
+    font-size: 1rem;
+    padding: 10px 15px;
+    border-radius: 8px;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
 }
 
 .valence-display.darkMode {
-    color: #A78BFA;
-    /* Purple text color for dark mode */
+    color: white;
 }
 </style>
