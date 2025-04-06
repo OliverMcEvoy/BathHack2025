@@ -1,91 +1,15 @@
 <template>
     <div class="spotify-desktop" :style="backgroundStyle">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="logo">🎵 SoundScape</div>
-            <div class="recent-tracks" v-if="recentTracks.length">
-                <h3>RECENT TRACKS</h3>
-                <div v-for="(recentTrack, index) in recentTracks" :key="index" class="recent-track"
-                    :class="{ loading: recentTrack.loading }" @click="playRecentTrack(recentTrack)">
-                    <div class="recent-art-wrapper">
-                        <img v-if="recentTrack.album?.images?.length >= 3" :src="recentTrack.album.images[2].url"
-                            class="recent-art" />
-                        <div v-else class="recent-art-placeholder">
-                            <i class="fas fa-music"></i>
-                        </div>
-                    </div>
-                    <div class="recent-info">
-                        <div class="recent-title">{{ recentTrack.name || 'Unknown Track' }}</div>
-                        <div class="recent-artist">
-                            {{ recentTrack.artists?.[0]?.name || 'Unknown Artist' }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Area -->
+        <Sidebar :recentTracks="recentTracks" @playRecentTrack="playRecentTrack" />
         <div class="main-content centered">
-            <!-- Start Listening Button -->
-            <div v-if="!track && !audioLoading" class="start-listening">
+            <NowPlaying v-if="track" :track="track" :isPlaying="isPlaying" :rotationAngle="rotationAngle"
+                :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
+                :audioError="audioError" :progressPercentage="progressPercentage"
+                :currentTimeFormatted="currentTimeFormatted" :durationFormatted="durationFormatted"
+                @togglePlay="togglePlay" @prevTrack="prevTrack" @nextTrack="fetchTrack" @seekAudio="seekAudio" />
+            <div v-else-if="!track && !audioLoading" class="start-listening">
                 <button class="start-button" @click="startListening">Start Listening</button>
             </div>
-
-            <!-- Now Playing Section -->
-            <div v-if="track" class="now-playing">
-                <!-- Track Info Column -->
-                <div class="track-column">
-                    <div class="track-info">
-                        <!-- Album Art -->
-                        <div class="album-art-container" :class="{ rotating: isPlaying }"
-                            :style="{ transform: `rotate(${rotationAngle}deg)` }">
-                            <img v-if="track.album?.images?.length" :src="track.album.images[0].url" :alt="track.name"
-                                class="album-art" />
-                            <div v-else class="album-art-placeholder">
-                                <i class="fas fa-music"></i>
-                            </div>
-                        </div>
-
-                        <!-- Track Title and Artist -->
-                        <h1 class="track-title">{{ track.name }}</h1>
-                        <p class="artist">{{track.artists?.map(a => a.name).join(', ') || 'Unknown Artist'}}</p>
-
-                        <!-- Audio Controls -->
-                        <div class="audio-controls">
-                            <button class="control-button prev" @click="prevTrack">
-                                <i class="fas fa-step-backward"></i>
-                            </button>
-                            <button class="control-button play" @click="togglePlay"
-                                :style="{ background: `linear-gradient(135deg, ${gradientStart}, ${gradientEnd})` }"
-                                :disabled="audioLoading">
-                                <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
-                            </button>
-                            <button class="control-button next" @click="fetchTrack">
-                                <i class="fas fa-step-forward"></i>
-                            </button>
-                        </div>
-
-                        <!-- Progress Bar -->
-                        <div class="progress-container">
-                            <div class="progress-time left">{{ currentTimeFormatted }}</div>
-                            <div class="progress-bar" @click="seekAudio">
-                                <div class="progress" :style="{ width: progressPercentage + '%' }"></div>
-                            </div>
-                            <div class="progress-time right">{{ durationFormatted }}</div>
-                        </div>
-
-                        <!-- Loading and Error States -->
-                        <div v-if="audioLoading" class="audio-state">
-                            <i class="fas fa-spinner fa-spin"></i> Loading audio...
-                        </div>
-                        <div v-if="audioError" class="audio-state error">
-                            <i class="fas fa-exclamation-triangle"></i> {{ audioError }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Empty State -->
             <div v-else-if="audioLoading" class="empty-state">
                 <div class="empty-content">
                     <i class="fas fa-spinner fa-spin empty-icon"></i>
@@ -93,19 +17,23 @@
                 </div>
             </div>
         </div>
-
-        <!-- Valence Display -->
-        <div class="valence-display">
-            Valence: {{ valence.toFixed(2) }}
-        </div>
+        <ValenceDisplay :valence="valence" />
     </div>
 </template>
 
 <script>
+import Sidebar from './Sidebar.vue';
+import NowPlaying from './NowPlaying.vue';
+import ValenceDisplay from './ValenceDisplay.vue';
 import axios from 'axios';
 import OpenAI from "openai";
 
 export default {
+    components: {
+        Sidebar,
+        NowPlaying,
+        ValenceDisplay,
+    },
     data() {
         return {
             trackId: '',
