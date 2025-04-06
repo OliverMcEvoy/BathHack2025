@@ -38,7 +38,6 @@ import Sidebar from './Sidebar.vue';
 import NowPlaying from './NowPlaying.vue';
 import ValenceDisplay from './ValenceDisplay.vue';
 import axios from 'axios';
-import OpenAI from "openai";
 
 export default {
     components: {
@@ -253,14 +252,8 @@ export default {
             } catch (error) {
                 console.error('Valence fetch error:', error);
             }
-            const client = new OpenAI();
 
-            const response = await client.responses.create({
-                model: "gpt-4o",
-                input: "Write a one-sentence bedtime story about a unicorn."
-            });
 
-            console.log(response.output_text);
         },
         async fetchValencePeriodically() {
             this.valenceInterval = setInterval(async () => {

@@ -1,24 +1,35 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import SpotifyPlayer from '../components/SpotifyPlayer.vue';
 import SpotifyLogin from '../components/SpotifyLogin.vue';
-import Callback from '../components/Callback.vue'; // Import the Callback component
 
 const routes = [
-    { path: '/login', component: SpotifyLogin },
-    { path: '/callback', component: Callback }, // Add the callback route
-    {
+    { 
+        path: '/login',
+        component: SpotifyLogin,
+    },
+    { 
+        path: '/player',  // Dedicated player route - no code checks
+        component: SpotifyPlayer,
+    },
+    { 
         path: '/',
         component: SpotifyPlayer,
-        beforeEnter: (to, from, next) => {
-            const token = localStorage.getItem('spotify_token');
-            console.log('Token in router guard:', token); // Debug log
-            if (!token) {
-                next('/login'); // Redirect to login if not authenticated
+        beforeEnter: async (to, from, next) => {
+            // Check if URL has Spotify OAuth code (redirect from Spotify)
+            const code = new URLSearchParams(window.location.search).get('code');
+            
+            if (code) {
+                // Redirect to login page with the code
+                next(`/login?code=${code}&state=${to.query.state || ''}`);
+            } 
+            // Normal auth check
+            else if (!localStorage.getItem('spotify_token_2')) {
+                next('/login');
             } else {
-                next(); // Proceed to SpotifyPlayer if authenticated
+                next();
             }
-        },
-    },
+        }
+    }
 ];
 
 const router = createRouter({

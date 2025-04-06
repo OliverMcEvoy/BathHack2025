@@ -29,7 +29,7 @@ Route::prefix('spotify')->group(function () {
 
     // Route to fetch Spotify token
     Route::get('/token', function () {
-        if (!Session::has('spotify_token')) {
+        if (!Session::has('spotify_toekn_2')) {
             return response()->json(['error' => 'No token available'], 401);
         }
 

@@ -16,7 +16,8 @@ class SpotifyController extends Controller
         'user-read-currently-playing',
         'streaming',
         'app-remote-control',
-        'user-read-email' // Valid scope
+        'user-read-email',
+        'user-top-read', // Valid scope
         // Removed 'web-playback' as it is not a valid Spotify scope
     ];
 
@@ -34,8 +35,14 @@ class SpotifyController extends Controller
             'show_dialog' => true
         ]);
 
+        $url = 'https://accounts.spotify.com/authorize?' . $params;
+
+        // Log the authorization URL for debugging
+        Log::info('Spotify authorization URL', ['url' => $url]);
+
+
         return response()->json([
-            'authUrl' => 'https://accounts.spotify.com/authorize?' . $params
+            'authUrl' => $url,
         ]);
     }
 
@@ -64,7 +71,7 @@ class SpotifyController extends Controller
 
             $data = $response->json();
             Log::info('Spotify token received', ['access_token' => $data['access_token']]); // Log the token
-            Session::put('spotify_token', $data['access_token']);
+            Session::put('spotify_toekn_2', $data['access_token']);
             Session::put('spotify_refresh_token', $data['refresh_token']);
 
             return redirect('/')->with('success', 'Successfully connected to Spotify');
@@ -76,14 +83,15 @@ class SpotifyController extends Controller
 
     public function checkAuth()
     {
+        log::Debug(session('spotify_toekn_2'));
         return response()->json([
-            'authenticated' => Session::has('spotify_token')
+            'authenticated' => Session::has('spotify_toekn_2')
         ]);
     }
 
     public function getAccessToken()
     {
-        if (!Session::has('spotify_token')) {
+        if (!Session::has('spotify_toekn_2')) {
             throw new \Exception('Not authenticated');
         }
 
@@ -99,12 +107,12 @@ class SpotifyController extends Controller
 
                 if ($response->successful()) {
                     $data = $response->json();
-                    Session::put('spotify_token', $data['access_token']);
+                    Session::put('spotify_toekn_2', $data['access_token']);
                     return ['access_token' => $data['access_token']];
                 }
             }
 
-            return ['access_token' => Session::get('spotify_token')];
+            return ['access_token' => Session::get('spotify_toekn_2')];
         } catch (\Exception $e) {
             Log::error('Token refresh error: ' . $e->getMessage());
             throw $e;
