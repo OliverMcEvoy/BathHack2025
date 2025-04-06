@@ -1,6 +1,6 @@
 <template>
-    <div class="callback">
-        <h2>Processing Spotify Authentication...</h2>
+    <div>
+        <p>Redirecting...</p>
     </div>
 </template>
 
@@ -9,26 +9,29 @@ import axios from 'axios';
 
 export default {
     async mounted() {
-        const queryParams = new URLSearchParams(window.location.search);
-        const code = queryParams.get('code');
-        const error = queryParams.get('error');
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const state = params.get('state');
 
-        if (error) {
-            console.error('Spotify authentication error:', error);
-            return;
-        }
-
-        if (code) {
-            try {
-                const response = await axios.get('http://127.0.0.1:8000/spotify/callback', {
-                    params: { code },
-                });
-                console.log('Spotify access token:', response.data);
-                localStorage.setItem('spotify_token', response.data.access_token);
-                window.location.href = '/'; // Redirect to the main player
-            } catch (err) {
-                console.error('Error exchanging code for token:', err);
+            if (!code || !state) {
+                console.error('Missing code or state in callback URL');
+                return;
             }
+
+            const response = await axios.get('http://127.0.0.1:8000/spotify/callback', {
+                params: { code, state },
+            });
+
+            if (response.data.success) {
+                localStorage.setItem('spotify_token', response.data.token); // Store token
+                console.log('Token stored:', response.data.token);
+                this.$router.push('/'); // Redirect to the main page
+            } else {
+                console.error('Callback error:', response.data.error);
+            }
+        } catch (error) {
+            console.error('Callback error:', error);
         }
     },
 };

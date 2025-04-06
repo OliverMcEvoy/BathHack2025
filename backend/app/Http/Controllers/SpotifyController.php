@@ -63,6 +63,7 @@ class SpotifyController extends Controller
             }
 
             $data = $response->json();
+            Log::info('Spotify token received', ['access_token' => $data['access_token']]); // Log the token
             Session::put('spotify_token', $data['access_token']);
             Session::put('spotify_refresh_token', $data['refresh_token']);
 

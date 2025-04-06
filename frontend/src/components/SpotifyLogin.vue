@@ -3,7 +3,7 @@
         <div v-if="!isAuthenticated" class="login-container">
             <h2>Connect to Spotify</h2>
             <p>Please login to Spotify to use this player</p>
-            <button @click="login" class="spotify-button">
+            <button @click="loginWithSpotify" class="spotify-button">
                 <i class="fab fa-spotify"></i>
                 Login with Spotify
             </button>
@@ -25,14 +25,16 @@ export default {
         }
     },
     methods: {
-        async login() {
+        async loginWithSpotify() {
             try {
                 const response = await axios.get('http://127.0.0.1:8000/spotify/authorize');
                 if (response.data.authUrl) {
-                    window.location.href = response.data.authUrl;
+                    window.location.href = response.data.authUrl; // Redirect to Spotify authorization URL
+                } else {
+                    console.error('Authorization URL not received');
                 }
             } catch (error) {
-                console.error('Login failed:', error);
+                console.error('Login error:', error);
             }
         },
         async checkAuth() {
