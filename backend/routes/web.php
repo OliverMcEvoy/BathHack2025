@@ -45,6 +45,7 @@ Route::prefix('spotify')->group(function () {
 
 Route::get('/spotify/authorize', [SpotifyController::class, 'authorize']);
 Route::get('/spotify/callback', [SpotifyController::class, 'callback']);
+Route::get('/spotify/logout', [SpotifyController::class, 'logout']);
 
 Route::get('/{any}', function () {
     return file_get_contents(public_path('index.html')); // Serve the Vue app's entry point

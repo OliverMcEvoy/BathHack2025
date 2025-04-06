@@ -357,4 +357,10 @@ class SpotifyController extends Controller
             return response()->json(['error' => 'Failed to fetch valence'], 500);
         }
     }
+
+    public function logout()
+    {
+        Session::flush(); // Clear all session data
+        return redirect('/login'); // Redirect to the login page
+    }
 }

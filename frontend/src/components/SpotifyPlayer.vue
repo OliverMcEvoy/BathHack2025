@@ -14,6 +14,7 @@
         <button class="logout-icon" @click="logout">
             <i class="fas fa-sign-out-alt"></i>
         </button>
+        <button class="confetti-button" @click="triggerConfetti">Confetti!</button>
         <div class="main-content" :class="{ centered: collapsed }">
             <NowPlaying v-if="track" :track="track" :isPlaying="isPlaying" :rotationAngle="rotationAngle"
                 :gradientStart="gradientStart" :gradientEnd="gradientEnd" :audioLoading="audioLoading"
@@ -38,6 +39,7 @@ import Sidebar from './Sidebar.vue';
 import NowPlaying from './NowPlaying.vue';
 import ValenceDisplay from './ValenceDisplay.vue';
 import axios from 'axios';
+import JSConfetti from 'js-confetti'
 
 export default {
     components: {
@@ -77,6 +79,7 @@ export default {
                 animationDuration: 20 + Math.random() * 40 // Slower animation duration
             })),
             darkMode: false, // New state for dark mode
+            jsConfetti: null
         };
     },
     computed: {
@@ -450,10 +453,17 @@ export default {
             }
             setTimeout(this.updateProgress, 500);
         },
-        logout() {
-            // Implement logout logic here
-            console.log('User logged out');
+        async logout() {
+            try {
+                await axios.get('http://127.0.0.1:8000/spotify/logout');
+                window.location.href = '/login'; // Redirect to the login page
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
         },
+        triggerConfetti() {
+            this.jsConfetti.addConfetti()
+        }
     },
     mounted() {
         this.fetchValencePeriodically();
@@ -470,6 +480,7 @@ export default {
         this.updateRotation();
         this.updateProgress();
         this.preloadNextTrack(); // Ensure the first next track is preloaded
+        this.jsConfetti = new JSConfetti()
     },
     beforeUnmount() {
         if (this.valenceInterval) clearInterval(this.valenceInterval);
@@ -1069,5 +1080,23 @@ body {
     font-size: 3rem;
     color: #888;
     margin-bottom: 1rem;
+}
+
+.confetti-button {
+    position: absolute;
+    top: 100px;
+    right: 20px;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #ff6f91, #ff9671);
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.confetti-button:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 15px rgba(255, 150, 113, 0.6);
 }
 </style>
