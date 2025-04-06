@@ -127,12 +127,22 @@ export default {
         async fetchTrack() {
             try {
                 this.audioError = null;
-                const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
-                if (!recResponse.data?.recommendation) {
-                    throw new Error('No track recommendation received');
-                }
-                this.trackId = recResponse.data.recommendation;
+                const gptResponse = await axios.get('http://127.0.0.1:8000/gpt/closestmatch');
+                console.log('GPT response:', gptResponse);
 
+
+                if (!gptResponse.data?.id) {
+                    // if (true) {
+                    const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
+                    if (!recResponse.data?.recommendation) {
+                        throw new Error('No track recommendation received');
+                    }
+                    this.trackId = recResponse.data.recommendation;
+                }
+                else {
+
+                    this.trackId = gptResponse.data.id;
+                }
                 const trackResponse = await axios.get('http://127.0.0.1:8000/spotify/track', {
                     params: { track_id: this.trackId }
                 });
@@ -165,11 +175,31 @@ export default {
         },
         async preloadNextTrack() {
             try {
-                const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
-                if (!recResponse.data?.recommendation) {
-                    throw new Error('No track recommendation received');
+
+
+                this.audioError = null;
+                const gptResponse = await axios.get('http://127.0.0.1:8000/gpt/closestmatch');
+                console.log('GPT response:', gptResponse);
+
+
+                let nextTrackId = null;
+
+                if (!gptResponse.data?.id) {
+                    // if (true) {
+                    const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
+                    if (!recResponse.data?.recommendation) {
+                    }
+                    this.trackId = recResponse.data.recommendation;
+                    nextTrackId = recResponse.data.recommendation;
                 }
-                const nextTrackId = recResponse.data.recommendation;
+                else {
+                    nextTrackId = gptResponse.data.id;
+                }
+
+                // const recResponse = await axios.get('http://127.0.0.1:8000/spotify/rec');
+                // if (!recResponse.data?.recommendation) {
+                //     throw new Error('No track recommendation received');
+                // }
 
                 const trackResponse = await axios.get('http://127.0.0.1:8000/spotify/track', {
                     params: { track_id: nextTrackId }
@@ -278,7 +308,7 @@ export default {
                 } catch (error) {
                     console.error('Periodic valence fetch error:', error);
                 }
-            }, 5000);
+            }, 500);
         },
         updateGradient() {
             const valenceColorMap = this.darkMode
@@ -416,6 +446,7 @@ export default {
             this.player.previousTrack();
         },
         async nextTrack() {
+            this.resetPlayback(); // reset before starting next track
             if (this.nextTrackData) {
                 this.track = this.nextTrackData;
                 this.trackId = this.track.id;
@@ -424,6 +455,8 @@ export default {
                 this.addToRecentTracks(this.track);
                 await this.setupAudio();
                 this.preloadNextTrack(); // Preload the subsequent track
+                this.updateProgress();
+                this.updateRotation();
             }
         },
         seekAudio(event) {
@@ -456,7 +489,9 @@ export default {
                 }
                 this.progressPercentage = (this.currentTime / (this.track.duration_ms / 1000)) * 100;
             }
-            setTimeout(this.updateProgress, 500);
+            this.progressTimer = setTimeout(() => {
+                this.updateProgress();
+            }, 500);
         },
         async logout() {
             try {
@@ -468,6 +503,19 @@ export default {
         },
         triggerConfetti() {
             this.jsConfetti.addConfetti()
+        },
+        resetPlayback() {
+            // Reset progress bar values
+            this.progressPercentage = 0;
+            this.currentTime = 0;
+            if (this.progressTimer) {
+                clearTimeout(this.progressTimer);
+                this.progressTimer = null;
+            }
+            if (this.rotationTimer) {
+                clearTimeout(this.rotationTimer);
+                this.rotationTimer = null;
+            }
         }
     },
     mounted() {
@@ -478,7 +526,7 @@ export default {
             const diff = this.valence - this.displayValence;
             this.displayValence += diff * 0.01;
             this.updateGradient();
-            setTimeout(updateDisplayValence, 100);
+            setTimeout(updateDisplayValence, 10);
         };
         updateDisplayValence();
 

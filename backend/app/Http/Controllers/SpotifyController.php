@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\GPTController;
 
 class SpotifyController extends Controller
 {
@@ -181,6 +183,7 @@ class SpotifyController extends Controller
 
     public function getTopTracksTitles()
     {
+        log::debug('get top song titles');
         try {
             $tokenData = $this->getAccessToken();
             if (!isset($tokenData['access_token'])) {
@@ -201,12 +204,13 @@ class SpotifyController extends Controller
 
             $gpt = new GPTController();
 
-            $csvPath = storage_path('app/song_analysis.csv');
-            $fileExists = file_exists($csvPath);
-            $handle = fopen($csvPath, 'a');
+            // Use the session ID to create a unique CSV filename for each user
+            $csvFile = 'song_analysis_' . Session::getId() . '.csv';
 
-            if (!$fileExists) {
-                fputcsv($handle, ['ID', 'Song', 'Tempo', 'Valence']);
+            log::debug('csv file name: ' . $csvFile);
+
+            if (!Storage::disk('local')->exists($csvFile)) {
+                Storage::disk('local')->put($csvFile, "ID,Song,Tempo,Valence\n");
             }
 
             foreach ($data['items'] as $track) {
@@ -219,8 +223,8 @@ class SpotifyController extends Controller
                 $analysis = $gpt->analyzeSongData($trackId, $formattedSong);
 
                 if ($analysis) {
-                    // Save to CSV
-                    fputcsv($handle, [$trackId, $formattedSong, $analysis['tempo'], $analysis['valence']]);
+                    $line = "{$trackId},{$formattedSong},{$analysis['tempo']},{$analysis['valence']}\n";
+                    Storage::disk('local')->append($csvFile, $line);
 
                     $songsWithAnalysis[] = [
                         'id' => $trackId,
@@ -231,16 +235,12 @@ class SpotifyController extends Controller
                 }
             }
 
-            fclose($handle);
-
             return response()->json($songsWithAnalysis);
         } catch (\Exception $e) {
             Log::error('Track top error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
-
 
     public function getReccomendationId()
     {

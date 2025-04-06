@@ -1,6 +1,6 @@
 <template>
     <div class="sidebar" :class="{ collapsed, darkMode }">
-        <div class="logo" v-if="!collapsed">Benjamin Hayward</div>
+        <div class="logo" v-if="!collapsed">Emotion EQ</div>
         <div class="recent-tracks" v-if="recentTracks.length && !collapsed">
             <h3>RECENT TRACKS</h3>
             <div v-for="(recentTrack, index) in recentTracks" :key="index" class="recent-track"
