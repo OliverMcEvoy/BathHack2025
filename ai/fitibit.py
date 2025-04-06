@@ -56,8 +56,6 @@ def get_recent_heart_rate(access_token):
 
     if response.status_code == 200:
         heart_rate_data = response.json()
-        print(heart_rate_data)
-        print("____________________")
         # Extract the most recent heart rate from the returned data
         try:
             # Assuming 'activities-heart' contains the heart rate data for the day
