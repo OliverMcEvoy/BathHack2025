@@ -130,6 +130,9 @@ def monitor_csv():
                 
                 current_valence, current_tempo, timestamp = process_csv_copy()
                 
+                if current_tempo is None:
+                    current_tempo = 80
+
                 if current_valence is None:
                     print("No valid data found, waiting...")
                     time.sleep(POLL_INTERVAL)

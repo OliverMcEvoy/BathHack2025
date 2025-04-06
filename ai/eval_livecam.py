@@ -131,7 +131,7 @@ heart_frequency = 100
 beta = 10
 valences = []
 access_token, refresh_token = load_tokens()
-recent_heart_rate = 0
+recent_heart_rate = 80
 
 while True:
     ret, frame = video_capture.read()
@@ -157,6 +157,7 @@ while True:
         recent_heart_rate = get_recent_heart_rate(access_token)
         if recent_heart_rate:
             print("Most recent heart rate:", recent_heart_rate)
+
         else:
             print("Access token expired or invalid. Attempting to refresh.")
             new_access_token = refresh_access_token(refresh_token)
