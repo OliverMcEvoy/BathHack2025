@@ -6,11 +6,16 @@ from PIL import Image
 import numpy as np
 from ResEmoteNet import ResEmoteNet
 from ultralytics import YOLO
-import requests
+import csv
+from datetime import datetime
+import os
+
+from fitibit import get_recent_heart_rate, load_tokens, refresh_access_token
+global average
+average = 0.000
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
-# Emotions labels
 emotions = ["happy", "surprise", "sad", "anger", "disgust", "fear", "neutral"]
 model = ResEmoteNet().to(device)
 checkpoint = torch.load("fer2013_model.pth", weights_only=True)
@@ -24,16 +29,20 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-# Access the webcam
 video_capture = cv2.VideoCapture(0)
 
-# Settings for text
 font = cv2.FONT_HERSHEY_SIMPLEX
-font_scale = 1.2
-font_color = (0, 255, 0)  # This is BGR color
-thickness = 3
+font_scale = 1.5
+font_color = (0, 255, 0)
+thickness = 2
 line_type = cv2.LINE_AA
 max_emotion = ""
+
+CSV_FILENAME = 'valence_data.csv'
+if not os.path.isfile(CSV_FILENAME):
+    with open(CSV_FILENAME, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['timestamp', 'valence'])
 
 def detect_emotion(video_frame):
     vid_fr_tensor = transform(video_frame).unsqueeze(0).to(device)
@@ -45,51 +54,48 @@ def detect_emotion(video_frame):
     return rounded_scores
 
 def get_max_emotion(x, y, w, h, video_frame):
-    crop_img = video_frame[y : y + h, x : x + w]
+    crop_img = video_frame[y:y+h, x:x+w]
     pil_crop_img = Image.fromarray(crop_img)
     rounded_scores = detect_emotion(pil_crop_img)    
     max_index = np.argmax(rounded_scores)
-    max_emotion = emotions[max_index]
-    return max_emotion
+    return emotions[max_index]
 
 def print_max_emotion(x, y, video_frame, max_emotion):
-    org = (x, y - 15)
-    cv2.putText(video_frame, max_emotion, org, font, font_scale, font_color, thickness, line_type)
-    
+    global average
+    cv2.putText(video_frame, max_emotion, (x - 15, y - 10), font, 1, font_color, thickness, line_type)
+    cv2.putText(video_frame, "valence: "+ str(np.round(average, 2)), (x - 15, y - 40), font, 0.6, font_color, thickness, line_type)
+
 def print_all_emotion(x, y, w, h, video_frame):
-    crop_img = video_frame[y : y + h, x : x + w]
+    crop_img = video_frame[y:y+h, x:x+w]
     pil_crop_img = Image.fromarray(crop_img)
     rounded_scores = detect_emotion(pil_crop_img)
     org = (x + w + 10, y - 20)
-    for index, value in enumerate(emotions):
-        emotion_str = (f"{value}: {rounded_scores[index]:.2f}")
-        y = org[1] + 40
-        org = (org[0], y)
-        cv2.putText(video_frame, emotion_str, org, font, font_scale, font_color, thickness, line_type)
-    
+    for idx, emotion in enumerate(emotions):
+        emotion_str = f"{emotion}: {rounded_scores[idx]:.2f}"
+        cv2.putText(video_frame, emotion_str, (org[0], org[1] + 40*idx), font, 0.6, font_color, thickness, line_type)
     return rounded_scores
-
 
 detector = YOLO("yolov11n-face.pt")
 
 def detect_bounding_box(video_frame, counter):
     global max_emotion
     try:
-        x, y, w, h = detector.predict(video_frame, conf=0.5, save=False, verbose=False)[0].boxes.xywh[0].to(torch.int16).cpu().numpy()
-        x = int(x - (w / 2))
-        y = int(y - (h / 2))
+        results = detector.predict(video_frame, conf=0.5, verbose=False)
+        x, y, w, h = results[0].boxes.xywh[0].to(torch.int16).cpu().numpy()
+        x, y = int(x - w//2), int(y - h//2)
 
-        cv2.rectangle(video_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.rectangle(video_frame, (x, y), (x + w, y + h), font_color, 2)
         if counter == 0:
-            max_emotion = get_max_emotion(x, y, w, h, video_frame) 
+            max_emotion = get_max_emotion(x, y, w, h, video_frame)
             
         print_max_emotion(x, y, video_frame, max_emotion)
         rounded_scores = print_all_emotion(x, y, w, h, video_frame)
         return np.array(rounded_scores) if counter == 0 else None
     
-    except:
-        print("No face !!!")
-
+    except Exception as e:
+        print(f"Detection error: {str(e)}")
+        return None
+    
 def ewma(data, window):
     data = np.array(data)
     alpha = 2 / (window + 1.0)
@@ -107,46 +113,67 @@ def ewma(data, window):
     out = offset + cumsum * scale_array[::-1]
     return out
 
+def calculate_valence(scores):
+    positive = scores[0:1].max()
+    negative = scores[2:5].max()
+    neutral = scores[6]
+
+    if neutral < positive or neutral < negative:
+        valence = positive / (positive + negative)
+    else:
+        valence = 0.5
+
+    return valence
+
 counter = 0
-evaluation_frequency = 10
+emotion_frequency = 10
+heart_frequency = 500
+beta = 10
 valences = []
+access_token, refresh_token = load_tokens()
+recent_heart_rate = 80
 
-# Loop for Real-Time Face Detection
 while True:
+    ret, frame = video_capture.read()
+    if not ret:
+        break
 
-    result, video_frame = video_capture.read()
-    if result is False:
-        break 
-    
-    rounded_scores = detect_bounding_box(video_frame, counter)
-    if rounded_scores is not None:
-        positive = rounded_scores[0:1].max() 
-        negative = rounded_scores[2:5].max()
-        neutral = rounded_scores[6]
-
-        if neutral < positive or neutral < negative:
-            valence = positive if positive >= negative else (1 - negative)
-        else:
-            valence = 0.5
-
+    scores = detect_bounding_box(frame, counter % emotion_frequency)
+    if scores is not None:
+        valence = calculate_valence(scores)
         valences.append(valence)
-        average = ewma(valences, window=5)[-1]
+        average = np.round(ewma(valences, window=beta)[-1], 4)
 
-        url = "https://e761-138-38-223-170.ngrok-free.app/external-api"
-        json = {"valence": average}
-        x = requests.post(url, json=json, timeout=(5, 5))
-        #print(x.status_code)
-        #x.close()
-        print(np.round(average, 4))
+        if recent_heart_rate is None:
+            recent_heart_rate = 80
+            
+        with open(CSV_FILENAME, 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([datetime.now().isoformat(), average, recent_heart_rate])
 
-    cv2.imshow("ResEmoteNet", video_frame) 
-
+    cv2.imshow("ResEmoteNet", frame)
+    
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
+
+    if counter % heart_frequency == 0:
+        recent_heart_rate = get_recent_heart_rate(access_token)
+        if recent_heart_rate:
+            print("Most recent heart rate:", recent_heart_rate)
+
+        else:
+            recent_heart_rate = None
+            """
+            print("Access token expired or invalid. Attempting to refresh.")
+            new_access_token = refresh_access_token(refresh_token)
+            
+            if new_access_token:
+                recent_heart_rate = get_recent_heart_rate(new_access_token)
+                if recent_heart_rate:
+                    print("Most recent heart rate:", recent_heart_rate)
+            """
     
-    counter += 1
-    if counter == evaluation_frequency:
-        counter = 0
-        
+    counter = counter + 1
+
 video_capture.release()
 cv2.destroyAllWindows()
